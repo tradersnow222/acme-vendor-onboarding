@@ -1,0 +1,109 @@
+{
+  "request_id": "VR-0001",
+  "case": "worked_example",
+  "summary": "Hand-run worked example. Messy intake, one follow-up round, customer data yes, so manager plus Security. Ends approved with conditions.",
+  "data_labels": {
+    "vendor": "PUBLIC (real company; pack facts fetched by hand from public pages on 2026-10-08)",
+    "people_messages_times_replies": "SYNTHESIZED",
+    "acme": "fictional"
+  },
+  "people": {
+    "requester": {"name": "Priya Raman [SYNTHESIZED]", "role": "Customer Support Lead"},
+    "manager": {"name": "Daniel Okafor [SYNTHESIZED]", "role": "Director of Customer Support"},
+    "security": {"name": "Lena Hoffmann [SYNTHESIZED]", "role": "Security & GRC Lead"}
+  },
+  "messages": [
+    {
+      "round": 0,
+      "from": "requester",
+      "time": "2026-10-08T09:12:00-07:00",
+      "text": "hey ops — can we get Zendesk onboarded for a 90-day pilot? our shared support inbox is drowning since the Q3 launch and we want real ticketing + routing. thinking ~8 agents on it. site is zendesk.com. it'd basically hold all our customer support emails + chats so I guess yes it touches customer data. I'll own it on our side. would love to start asap, let me know what you need from me 🙏"
+    },
+    {
+      "round": 1,
+      "from": "bot",
+      "time": "2026-10-08T09:13:00-07:00",
+      "text": "Thanks Priya. I have almost everything for the Zendesk pilot. Two things:\n1. What date do you want the pilot to start? \"ASAP\" can't go on the approval, so please give a calendar date.\n2. Please confirm: Zendesk will touch customer data (customer support emails and chats). That means Security reviews it as well as your manager.\nI've put you down as the business owner. Tell me if that should be someone else."
+    },
+    {
+      "round": 1,
+      "from": "requester",
+      "time": "2026-10-08T09:31:00-07:00",
+      "text": "monday nov 2 works — gives us time to set up macros. and yep confirmed, customer emails + chat transcripts. me as owner is right."
+    }
+  ],
+  "approver_replies": [
+    {"time": "2026-10-08T16:40:00-07:00", "approver": "Daniel Okafor [SYNTHESIZED]", "role": "manager", "decision": "approved", "conditions": [], "note": "Fine for 90 days on Suite Professional monthly, cap 8 seats."},
+    {"time": "2026-10-09T11:25:00-07:00", "approver": "Lena Hoffmann [SYNTHESIZED]", "role": "security", "decision": "approved_with_conditions", "conditions": [
+      "Suite Professional with Data Center Location = US switched on before any customer data goes in",
+      "SSO via SAML required for all agents",
+      "DPA signed",
+      "Request the SOC 2 Type II report under NDA before day 30"
+    ], "note": ""}
+  ],
+  "expected": {
+    "intake": {
+      "after_first_message": {
+        "ask_for": ["target_start_date"],
+        "confirm": ["touches_customer_data"],
+        "fill_from_research": ["vendor_legal_name"]
+      },
+      "rounds_used": 1,
+      "complete": true,
+      "fields": {
+        "vendor_legal_name": {"value": "Zendesk, Inc.", "raw_text": "Zendesk", "from": "research", "source_url": "https://www.zendesk.com/company/agreements-and-terms/main-services-agreement/", "confirmed": true},
+        "website": {"value": "https://www.zendesk.com", "raw_text": "zendesk.com", "from": "requester", "confirmed": true},
+        "touches_customer_data": {"value": true, "raw_text": "I guess yes it touches customer data", "from": "requester", "confirmed": true},
+        "business_owner": {"value": "Priya Raman [SYNTHESIZED], Customer Support Lead", "raw_text": "I'll own it on our side", "from": "requester", "confirmed": true},
+        "target_start_date": {"value": "2026-11-02", "raw_text": "asap", "from": "requester", "confirmed": true}
+      },
+      "context": {"pilot_length_days": 90, "seats_requested": 8, "use_case": "Replace shared support inbox with ticketing and routing [SYNTHESIZED]"}
+    },
+    "pack": {
+      "rows": [
+        {"id": "R1", "item": "Legal entity", "value": "Zendesk, Inc., a Delaware corporation. Notices go to 181 Fremont Street, 17th Floor, San Francisco, CA 94105.", "source_urls": ["https://www.zendesk.com/company/agreements-and-terms/main-services-agreement/"], "checked_date": "2026-10-08", "status": "found", "label": "PUBLIC"},
+        {"id": "R2", "item": "What it does", "value": "Customer service platform: email and ticketing, routing, messaging and live chat, voice, help center, AI agents. Sold per agent seat per month.", "source_urls": ["https://www.zendesk.com/pricing/"], "checked_date": "2026-10-08", "status": "found", "label": "PUBLIC"},
+        {"id": "R3", "item": "Data it would touch", "value": "\"Service Data\" = any information, including personal data, stored in or sent through Zendesk by the customer and its end users. Zendesk treats free-text fields as potentially containing personal data. For Acme: customer names, emails, ticket and chat contents. Acme is the controller; Zendesk is the processor.", "source_urls": ["https://www.zendesk.com/trust-center/", "https://support.zendesk.com/hc/en-us/articles/4408883061530-Sub-processor-Policy"], "checked_date": "2026-10-08", "status": "found", "label": "PUBLIC"},
+        {"id": "R4", "item": "Certifications / trust page", "value": "Trust Center lists SOC 2 Type II, ISO 27001:2022, 27017, 27018, 27701, ISO 42001 (AI), FedRAMP LI-SaaS, Cyber Essentials Plus, CSA STAR (incl. STAR AI Levels 1-2), HIPAA BAA available, PCI-DSS redaction tools. Data encrypted at rest (AES-256 on AWS) and in transit (TLS 1.2+). Annual third-party pen tests; Bugcrowd bug bounty.", "source_urls": ["https://www.zendesk.com/trust-center/"], "checked_date": "2026-10-08", "status": "found", "label": "PUBLIC"},
+        {"id": "R5", "item": "Audit report access", "value": "SOC 2 Type II report is available on request under NDA, not public. ISO certificates are downloadable.", "source_urls": ["https://www.zendesk.com/trust-center/"], "checked_date": "2026-10-08", "status": "found", "label": "PUBLIC"},
+        {"id": "R6", "item": "Sub-processors", "value": "Public list with names, purposes and hosting locations, updated at least 30 days before changes, customers may object. Includes AWS (US, Ireland, Germany, UK, Japan, Australia), Google Cloud, Cloudflare, Datadog, Sentry, Snowflake, OpenAI and other AI providers, Twilio, SendGrid, plus Zendesk group companies. Policy update effective 2026-09-02 for new customers.", "source_urls": ["https://support.zendesk.com/hc/en-us/articles/4408883061530-Sub-processor-Policy", "https://www.zendesk.com/company/data-processing-agreement/"], "checked_date": "2026-10-08", "status": "found", "label": "PUBLIC"},
+        {"id": "R7", "item": "Data residency", "value": "Customer can pick US, EEA, UK, Japan or Australia only with the Data Center Location add-on, which is free on Suite Professional or higher but not switched on by default. Without it, Zendesk makes no hosting-location commitment. Some data types have exceptions.", "source_urls": ["https://support.zendesk.com/hc/en-us/articles/4408838409754-About-the-Data-Center-Location-add-on", "https://support.zendesk.com/hc/en-us/articles/4408883599130-Regional-Data-Hosting-Policy"], "checked_date": "2026-10-08", "status": "found", "label": "PUBLIC"},
+        {"id": "R8", "item": "SSO / MFA", "value": "Enterprise SSO (SAML, OIDC or JWT), social login, native 2FA, IP restrictions. Pricing table shows SSO and 2FA on all listed plans. Audit logs and custom agent roles are Enterprise-tier features.", "source_urls": ["https://www.zendesk.com/trust-center/", "https://www.zendesk.com/pricing/"], "checked_date": "2026-10-08", "status": "found", "label": "PUBLIC"},
+        {"id": "R9", "item": "DPA / breach notice", "value": "Public DPA with Zendesk, Inc.; includes EU SCCs. Zendesk must notify the customer of a confirmed personal data breach without undue delay and within 48 hours.", "source_urls": ["https://www.zendesk.com/company/data-processing-agreement/"], "checked_date": "2026-10-08", "status": "found", "label": "PUBLIC"},
+        {"id": "R10a", "item": "Public pricing", "value": "Per agent per month, monthly billing: Support Team $25, Suite Team $69, Suite Professional $149. Annual billing: $19 / $55 / $115. 14-day free trial of Suite Professional. Month-to-month subscriptions offered.", "source_urls": ["https://www.zendesk.com/pricing/"], "checked_date": "2026-10-08", "status": "found", "label": "PUBLIC"},
+        {"id": "R10b", "item": "Suite Enterprise price", "value": "not found (page says \"Talk to Sales\")", "source_urls": ["https://www.zendesk.com/pricing/"], "checked_date": "2026-10-08", "status": "not_found", "label": "PUBLIC"},
+        {"id": "R10c", "item": "Pilot-specific pricing / 90-day term", "value": "not found (no public pilot price or 90-day term; only monthly, annual and multi-year)", "source_urls": ["https://www.zendesk.com/pricing/"], "checked_date": "2026-10-08", "status": "not_found", "label": "PUBLIC"},
+        {"id": "R10d", "item": "Estimated 90-day pilot cost", "value": "8 seats x 3 months, monthly billing: Suite Professional about $3,576 (8 x $149 x 3); Suite Team about $1,656 (8 x $69 x 3). Suite Professional is the cheapest tier that includes Data Center Location (see R7). Excludes add-ons, voice minutes, and AI resolutions beyond the plan allowance.", "source_urls": ["https://www.zendesk.com/pricing/"], "checked_date": "2026-10-08", "status": "found", "label": "ASSUMPTION"},
+        {"id": "R11", "item": "AI use of customer data (optional)", "value": "Generative AI runs on third-party models (OpenAI zero-retention endpoints, Azure, Bedrock, Google Cloud); Zendesk says providers don't train on customer data. Zendesk does use aggregated, sanitized Service Data to train its own non-generative classification models.", "source_urls": ["https://www.zendesk.com/trust-center/"], "checked_date": "2026-10-08", "status": "found", "label": "PUBLIC"}
+      ],
+      "check": {"complete": true, "rows": 14, "not_found": 2, "must_haves_filled": ["R1", "R3", "R4", "R10"], "every_row_has_url": true, "r3_shows_personal_data": true, "matches_intake_customer_data": true},
+      "summary_for_approvers": "Zendesk, Inc. is a well-known customer-support platform. For this pilot it would hold Acme customers' names, emails, and support conversations, so Security must review. On paper its security is strong: SOC 2 Type II (report only under NDA), several ISO certifications, a public sub-processor list, a public DPA with 48-hour breach notice, and SSO. Two things to decide: (1) data location is only guaranteed on Suite Professional or higher with the free add-on switched on, and (2) Zendesk uses sanitized customer data to train its own classification models. Estimated cost for 8 seats for 90 days on Suite Professional is about $3,576. No public price exists for Enterprise or for a 90-day pilot term.",
+      "questions_for_security": [
+        "Do we require US data residency? If yes, the pilot must be Suite Professional with the Data Center Location add-on switched on.",
+        "Do we need the SOC 2 Type II report before signing? It needs an NDA, so the vendor must be contacted. That's outside this public-only research.",
+        "Is Zendesk's use of sanitized customer data to train its own classification models acceptable? Whether an opt-out exists: not found on the public pages checked (https://www.zendesk.com/trust-center/)."
+      ]
+    },
+    "routing": {
+      "gate_checks": {"intake_complete": true, "pack_complete": true, "business_owner_is_named_person": true},
+      "route": ["manager", "security"],
+      "approvers": {"manager": "Daniel Okafor [SYNTHESIZED]", "security": "Lena Hoffmann [SYNTHESIZED]"},
+      "reason": "Zendesk will store Acme customers' names, emails and support conversations (pack R3), so policy sends it to Security as well as the manager."
+    },
+    "status": {
+      "decision": "approved_with_conditions",
+      "decided_at": "2026-10-09T11:25:00-07:00",
+      "approved_by": [
+        {"name": "Daniel Okafor [SYNTHESIZED]", "role": "manager", "at": "2026-10-08T16:40:00-07:00"},
+        {"name": "Lena Hoffmann [SYNTHESIZED]", "role": "security", "at": "2026-10-09T11:25:00-07:00"}
+      ],
+      "status_before_security_reply": "waiting on Security",
+      "nudges": [{"to": "Lena Hoffmann [SYNTHESIZED]", "at": "2026-10-09T10:00:00-07:00", "reason": "Security silent about 20 hours; silence is not a yes"}],
+      "days_open": 1.1,
+      "exceptions": {"missing_intake_fields": 1, "not_found_pack_rows": 2, "rejections": 0, "total": 3},
+      "logged_not_counted": {"hedged_answers": 1, "nudges": 1},
+      "steps_by_actor_type": {"script": 10, "model": 4, "person": 4},
+      "audit_file": "vr-0001-zendesk-audit.csv"
+    }
+  }
+}

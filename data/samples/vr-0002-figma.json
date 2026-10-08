@@ -1,0 +1,62 @@
+{
+  "request_id": "VR-0002",
+  "case": "clean_no_customer_data",
+  "summary": "Clean request. All five fields in the first message, no follow-up. No customer data, so manager only. Ends approved.",
+  "data_labels": {
+    "vendor": "PUBLIC (real company; research pack is produced later by the research step)",
+    "people_messages_times_replies": "SYNTHESIZED",
+    "acme": "fictional"
+  },
+  "people": {
+    "requester": {"name": "Marcus Bell [SYNTHESIZED]", "role": "Product Design Lead"},
+    "manager": {"name": "Aisha Karim [SYNTHESIZED]", "role": "VP Product"}
+  },
+  "messages": [
+    {
+      "round": 0,
+      "from": "requester",
+      "time": "2026-10-09T10:05:00-07:00",
+      "text": "Hi Ops, request for a 90-day pilot.\nVendor legal name: Figma, Inc.\nWebsite: https://www.figma.com\nTouches customer data: No. Only internal product mockups with placeholder data, no customer records.\nBusiness owner: Marcus Bell, Product Design Lead\nTarget start date: 2026-10-26\nAbout 5 designer seats."
+    }
+  ],
+  "approver_replies": [
+    {"time": "2026-10-09T14:50:00-07:00", "approver": "Aisha Karim [SYNTHESIZED]", "role": "manager", "decision": "approved", "conditions": [], "note": "Approved for 90 days, 5 seats."}
+  ],
+  "expected": {
+    "intake": {
+      "after_first_message": {"ask_for": [], "confirm": [], "fill_from_research": []},
+      "rounds_used": 0,
+      "complete": true,
+      "fields": {
+        "vendor_legal_name": {"value": "Figma, Inc.", "raw_text": "Figma, Inc.", "from": "requester", "confirmed": true},
+        "website": {"value": "https://www.figma.com", "raw_text": "https://www.figma.com", "from": "requester", "confirmed": true},
+        "touches_customer_data": {"value": false, "raw_text": "No. Only internal product mockups with placeholder data, no customer records.", "from": "requester", "confirmed": true},
+        "business_owner": {"value": "Marcus Bell [SYNTHESIZED], Product Design Lead", "raw_text": "Marcus Bell, Product Design Lead", "from": "requester", "confirmed": true},
+        "target_start_date": {"value": "2026-10-26", "raw_text": "2026-10-26", "from": "requester", "confirmed": true}
+      },
+      "context": {"pilot_length_days": 90, "seats_requested": 5, "use_case": "Internal product UI mockups with placeholder data [SYNTHESIZED]"}
+    },
+    "pack": {
+      "rows": null,
+      "produced_by": "research step",
+      "must_pass": "every row has a source URL or not_found; R1, R3, R4, R10 have values",
+      "r3_should_show_acme_customer_data": false
+    },
+    "routing": {
+      "gate_checks": {"intake_complete": true, "pack_complete": true, "business_owner_is_named_person": true},
+      "route": ["manager"],
+      "approvers": {"manager": "Aisha Karim [SYNTHESIZED]"},
+      "reason": "Requester says Figma will hold only internal mockups with placeholder data, so no Security review. If pack R3 shows Acme customer data, Security is added and the mismatch is flagged."
+    },
+    "status": {
+      "decision": "approved",
+      "decided_at": "2026-10-09T14:50:00-07:00",
+      "approved_by": [
+        {"name": "Aisha Karim [SYNTHESIZED]", "role": "manager", "at": "2026-10-09T14:50:00-07:00"}
+      ],
+      "nudges": [],
+      "days_open": 0.2,
+      "exceptions": {"missing_intake_fields": 0, "not_found_pack_rows": null, "rejections": 0, "total": null}
+    }
+  }
+}
