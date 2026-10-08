@@ -1,0 +1,18 @@
+---
+description: How to write pull requests in this repo
+alwaysApply: true
+---
+
+# Pull request style
+
+Pull requests are the context trail for people and AI agents who read this repo later. Keep every one clear, simple, and short.
+
+- **Title:** plain words that say what changed. No "N of M" numbering or totals.
+- **Body:** under about 200 words, in this order:
+  - **Why:** one or two sentences on the problem this solves.
+  - **What changed:** 3 to 6 bullets, one per file or idea.
+  - **How it was checked:** what you ran and what happened.
+  - **Open questions:** only if there are any.
+- Write short, full sentences in plain words. Explain any label or acronym the first time it appears.
+- One topic per pull request. If it needs a long explanation, split it into two.
+- Refer to other pull requests by number (#3), not by their place in a plan.
