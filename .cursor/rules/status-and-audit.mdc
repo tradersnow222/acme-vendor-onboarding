@@ -1,0 +1,29 @@
+---
+description: Pinned definitions for days open, exception count, audit rows, and the status view
+alwaysApply: false
+---
+
+# Status and audit definitions
+
+## Days open
+From the first requester message to the final decision (the last required named approval, or the rejection). While still open, up to now. Shown in days with one decimal.
+
+## Exception count
+Exceptions = missing intake fields + `not_found` pack rows + rejections.
+- Missing intake field and `not_found` row are defined in `intake-policy.mdc` and `research-checklist.mdc`.
+- Hedged answers and nudges are counted separately. They are not exceptions.
+
+## Audit log
+One row per step, appended, never edited. Columns:
+`step_id, step, actor_type, actor, timestamp_pt, what_they_saw, outcome, est_cost, could_be_done_by, data_label`
+- `actor_type`: exactly one of `script`, `model`, `person`.
+- `actor`: the script name, the model or bot, or the person's name.
+- `timestamp_pt`: ISO 8601 with offset, e.g. `2026-10-08T09:12-07:00`.
+- `est_cost`: tokens for a model step, minutes for a person step, `~0` for a script step.
+- `data_label`: `PUBLIC`, `SYNTHESIZED` or `ASSUMPTION` (see `data-boundaries.mdc`).
+
+## Status view
+Generated from the request files and the audit log, never from memory. Shows:
+- Overall state and each approver's name, decision, time, and conditions.
+- Days open and exception count, plus hedged-answer and nudge counts.
+- Steps by actor type, e.g. "10 script, 4 model, 4 person".
