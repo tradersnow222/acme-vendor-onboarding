@@ -1,0 +1,38 @@
+---
+description: Git workflow rules for acme-vendor-onboarding repository
+alwaysApply: true
+---
+
+# Git Workflow Rules
+
+Every code change in this repository follows these mandatory practices:
+
+## Branch and Pull Request Policy
+
+1. **Never commit or push directly to `main`**: All changes must go through a feature branch and pull request.
+2. **Create a new branch for every change**: Use descriptive branch names (e.g., `feature/intake-validation`, `fix/approval-routing`).
+3. **Open a pull request**: Every branch must have a pull request for Matt to review before merging.
+4. **Never merge your own pull request**: Matt reviews and merges all PRs.
+5. **Never force-push**: Preserve the commit history. If you need to update a PR, add new commits rather than rewriting history.
+
+## Commit Practices
+
+1. **Small, focused commits**: Each commit should represent a single logical change.
+2. **Clear commit messages**: Write messages that explain **why** the change was made, not just what changed.
+   - Good: "Add field validation to prevent incomplete intake requests"
+   - Bad: "Update validation.py"
+3. **Commit frequently**: Don't wait to accumulate large changes. Commit as you complete each logical piece of work.
+
+## Process Summary
+
+```
+main (protected)
+  ↓
+feature branch (your work)
+  ↓
+pull request (Matt reviews)
+  ↓
+main (Matt merges)
+```
+
+These rules ensure code quality, traceability, and collaborative review for the Acme vendor onboarding automation project.
