@@ -1,0 +1,16 @@
+{
+  "request_id": "",
+  "rows": [
+    {"id": "R1", "item": "Legal entity name and HQ", "value": "", "source_urls": [], "checked_date": "", "status": "not_found", "label": "PUBLIC"},
+    {"id": "R2", "item": "What the product does (one line)", "value": "", "source_urls": [], "checked_date": "", "status": "not_found", "label": "PUBLIC"},
+    {"id": "R3", "item": "Data it would touch", "value": "", "source_urls": [], "checked_date": "", "status": "not_found", "label": "PUBLIC"},
+    {"id": "R4", "item": "Security certifications / trust page", "value": "", "source_urls": [], "checked_date": "", "status": "not_found", "label": "PUBLIC"},
+    {"id": "R5", "item": "Audit report access (e.g. SOC 2 Type II)", "value": "", "source_urls": [], "checked_date": "", "status": "not_found", "label": "PUBLIC"},
+    {"id": "R6", "item": "Sub-processor list", "value": "", "source_urls": [], "checked_date": "", "status": "not_found", "label": "PUBLIC"},
+    {"id": "R7", "item": "Data residency options", "value": "", "source_urls": [], "checked_date": "", "status": "not_found", "label": "PUBLIC"},
+    {"id": "R8", "item": "SSO / MFA", "value": "", "source_urls": [], "checked_date": "", "status": "not_found", "label": "PUBLIC"},
+    {"id": "R9", "item": "DPA and breach-notice terms", "value": "", "source_urls": [], "checked_date": "", "status": "not_found", "label": "PUBLIC"},
+    {"id": "R10", "item": "Public pricing + estimated pilot cost", "value": "", "source_urls": [], "checked_date": "", "status": "not_found", "label": "PUBLIC"},
+    {"id": "R11", "item": "AI / model use of customer data", "value": "", "source_urls": [], "checked_date": "", "status": "not_found", "label": "PUBLIC"}
+  ]
+}
