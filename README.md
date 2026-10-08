@@ -120,13 +120,14 @@ To run anything:
 | Research pack template  | Planned     | Standard template with website, trust page, pricing sections          |
 | Cloud agent (via API)   | Planned     | Cursor API call to start agent that builds research pack              |
 | Public data sources     | Live        | Real vendor websites, trust pages, pricing (public only)              |
-| Sample requesters       | Synthesized | Fictional Acme employees (names, roles, emails)                       |
-| Sample vendors          | Mixed       | Real public company names; fictional pilot details                    |
+| Sample requesters       | Synthesized | Fictional Acme requesters, managers, approvers, labeled [SYNTHESIZED] in `data/samples/` |
+| Sample vendors          | Mixed       | Real public companies (Zendesk, Figma, Asana); pilot details synthesized |
+| Zendesk research pack   | Public      | Hand-run from public vendor pages on Oct 8, 2026; kept as the expected pack in `data/samples/` |
 | Approval routing        | Planned     | Script to route based on customer data flag                           |
 | Audit log               | Planned     | CSV/JSON log with who, when, what, cost                               |
 | Status generator        | Planned     | Script to show days open, exceptions, automated vs. person            |
-| Manager approvals       | Mocked      | Pre-set responses for demo; real humans in production                 |
-| Security approvals      | Mocked      | Pre-set responses for demo; real Security team in production          |
+| Manager approvals       | Mocked      | Pre-set `approver_replies` in `data/samples/`; real humans in production |
+| Security approvals      | Mocked      | Pre-set `approver_replies` in `data/samples/`; real Security team in production |
 
 ---
 
