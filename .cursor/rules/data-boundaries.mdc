@@ -1,0 +1,29 @@
+---
+description: What data agents may use, how to label it, and what they may read and write in this repo
+alwaysApply: true
+---
+
+# Data boundaries
+
+## Research: public sources only
+- Allowed: the vendor's website, security/trust page, public pricing page, public legal pages (main services agreement, DPA, sub-processor list) and public help-center articles. Web search to find those pages is allowed.
+- Not allowed: logins, gated portals (e.g. a Trust Portal), documents behind an NDA, sales contact, submitting forms.
+- If something is only available behind a login or NDA, record it as `not found` and note that a person must request it.
+- MCP servers and tools may reach only public or synthesized data.
+
+## Labels
+- `[PUBLIC]`: a fact read from a public page, always with its source URL.
+- `[SYNTHESIZED]`: any made-up Acme person, request, message, reply or time. Acme is fictional, so every Acme person is synthesized.
+- `[ASSUMPTION]`: our own math or reading, not the vendor's words (e.g. a pilot cost estimate).
+
+## Never
+- Real customer data or any employer's confidential data.
+- Real people as Acme staff, or real personal emails or phone numbers.
+- API keys or secrets in the repo. The Cursor API key lives only in a secret or environment variable.
+
+## Reading and writing this repo
+- Agents may read any file in the repo.
+- Agents write only on their own branch (see `git-workflow.mdc`).
+- Generated output goes to `packs/` and `runs/` (not committed). Sample data goes to `data/samples/` and must be synthesized or public, and labeled.
+- Do not edit `.cursor/rules/` or `AGENTS.md` unless the task asks for it.
+- Agents never write an approval. Only a named person's decision is recorded (see `approval-policy.mdc`).
