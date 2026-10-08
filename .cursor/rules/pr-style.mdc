@@ -5,15 +5,16 @@ alwaysApply: true
 
 # Pull request style
 
-Pull requests are the context trail for people and AI agents who read this repo later. Keep every one clear, simple, and short.
+Pull requests are the context trail for people and AI agents who read this repo later. This follows pstack's "Opening a PR" playbook (https://github.com/cursor/plugins/tree/main/pstack), plus a few house additions.
 
-- **Title:** plain words that say what changed. No "N of M" numbering or totals.
-- **Body:** under about 200 words, in this order:
-  - **Why:** one or two sentences on the problem this solves.
-  - **What changed:** 3 to 6 bullets, one per file or idea.
-  - **How it was checked:** what you ran and what happened.
-  - **Open questions:** only if there are any.
-- Write short, full sentences in plain words. Explain any label or acronym the first time it appears.
-- **Keep it small.** One script, rule, or skill per pull request, plus its test. Aim for under about 200 changed lines. If it needs a long explanation, split it.
-- Small pull requests make debugging easier, because a problem points to one change. Fixes found later get their own pull request; don't fold them into unrelated work.
-- Refer to other pull requests by number (#3), not by their place in a plan.
+- **Small:** one script, rule, or skill plus its test. Aim for under about 200 changed lines. Five narrow pull requests beat one fat one.
+- **Title:** plain words that say what changed. No "N of M" numbering and no `type(scope):` prefix.
+- **Open it ready for review**, not as a draft. A person still reviews and merges every one.
+- **Body:** under about 200 words. Use these sections and drop any with nothing to say:
+  - **Why:** the problem in one or two sentences.
+  - **What changed:** 3 to 6 bullets.
+  - **Scope:** what is deliberately left out.
+  - **Blast radius:** what else this could affect.
+  - **Verification:** the exact command you ran and its result.
+- Write short, full sentences in plain words. Explain any label the first time it appears.
+- Refer to other pull requests by number (#3), not by their place in a plan. Later fixes get their own pull request.
