@@ -29,6 +29,8 @@ runs/*
 !runs/.gitkeep
 packs/*
 !packs/.gitkeep
+tickets/*
+!tickets/.gitkeep
 
 # Logs
 *.log
