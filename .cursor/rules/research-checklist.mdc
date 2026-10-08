@@ -8,7 +8,7 @@ alwaysApply: false
 Sources follow `data-boundaries.mdc` (public pages only).
 
 ## Row format
-Every row has: `item`, `value`, `source_url`, `checked_date` (`YYYY-MM-DD`), `status` (`found` | `not_found`).
+Every row has: `id` (e.g. `R1`), `item`, `value`, `source_urls` (a list of one or more URLs), `checked_date` (`YYYY-MM-DD`), `status` (`found` | `not_found`).
 - `found`: a value plus the exact URL it came from, plus the date checked.
 - `not_found`: the words "not found" plus the URL(s) that were checked.
 - An item may have sub-rows (e.g. R10a, R10b), each in the same format.
@@ -30,11 +30,11 @@ Every row has: `item`, `value`, `source_url`, `checked_date` (`YYYY-MM-DD`), `st
 
 ## Enough research means
 - R1-R10 each have a row. R11 is optional.
-- Every row has a `source_url`.
+- Every row has a non-empty `source_urls` list.
 - R1, R3, R4 and R10 are `found`. If not, the pack goes to a person before routing.
 
 ## Never invent a link
-- Every `source_url` must appear in the run's fetch log (URL, HTTP status, time) with HTTP 200.
+- Every URL in `source_urls` must appear in the run's fetch log (URL, HTTP status, time) with HTTP 200.
 - If a page can't be fetched, the item is `not_found`. Do not guess a URL.
 - Starter pages to look for: pricing, trust or security, sub-processor list, DPA, main services agreement, data residency. The legal name and sub-processors are often only in legal or help-center pages.
 
