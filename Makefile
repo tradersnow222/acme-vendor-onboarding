@@ -5,36 +5,32 @@ help:
 	@echo ""
 	@echo "  make help       - Show this help message"
 	@echo "  make setup      - Set up project (placeholder)"
-	@echo "  make validate   - Run intake field validation (coming in PR 4)"
-	@echo "  make research   - Generate research pack (coming in PR 5)"
-	@echo "  make route      - Run approval routing (coming in PR 6)"
-	@echo "  make status     - Generate status report (coming in PR 6)"
-	@echo "  make audit      - Show audit log (coming in PR 6)"
+	@echo "  make validate   - Run intake field validation"
+	@echo "  make research   - Generate research pack"
+	@echo "  make route      - Run approval routing"
+	@echo "  make status     - Generate status report"
+	@echo "  make audit      - Show audit log"
 	@echo "  make clean      - Remove generated files"
-	@echo ""
-	@echo "Full workflow will be available after PR 8"
 
 setup:
 	@echo "Setup: Creating necessary directories..."
 	@mkdir -p packs runs data/samples
 	@echo "✓ Project structure ready"
-	@echo ""
-	@echo "Next: Add sample data and validation scripts in upcoming PRs"
 
 validate:
-	@echo "⚠ Intake validation script not yet implemented (coming in PR 4)"
+	@echo "⚠ Intake validation script not built yet"
 
 research:
-	@echo "⚠ Research pack generation not yet implemented (coming in PR 5)"
+	@echo "⚠ Research pack generation not built yet"
 
 route:
-	@echo "⚠ Approval routing not yet implemented (coming in PR 6)"
+	@echo "⚠ Approval routing not built yet"
 
 status:
-	@echo "⚠ Status report generation not yet implemented (coming in PR 6)"
+	@echo "⚠ Status report generation not built yet"
 
 audit:
-	@echo "⚠ Audit log viewing not yet implemented (coming in PR 6)"
+	@echo "⚠ Audit log viewing not built yet"
 
 clean:
 	@echo "Cleaning generated files..."
