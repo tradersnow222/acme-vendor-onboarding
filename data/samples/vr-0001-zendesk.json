@@ -45,7 +45,7 @@
     "intake": {
       "after_first_message": {
         "ask_for": ["target_start_date"],
-        "confirm": ["touches_customer_data"],
+        "confirm": ["touches_customer_data", "business_owner"],
         "fill_from_research": ["vendor_legal_name"]
       },
       "rounds_used": 1,
