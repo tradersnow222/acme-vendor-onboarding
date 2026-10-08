@@ -1,0 +1,75 @@
+{
+  "request_id": "VR-0003",
+  "case": "exception_missing_business_owner",
+  "summary": "Exception. Requester leaves out the business owner, so intake asks for it (round 1 of max 2). No customer data, so manager only. Ends approved.",
+  "data_labels": {
+    "vendor": "PUBLIC (real company; research pack is produced later by the research step)",
+    "people_messages_times_replies": "SYNTHESIZED",
+    "acme": "fictional"
+  },
+  "people": {
+    "requester": {"name": "Jordan Lee [SYNTHESIZED]", "role": "Business Operations Analyst"},
+    "manager": {"name": "Rachel Adeyemi [SYNTHESIZED]", "role": "Director of Business Operations"}
+  },
+  "messages": [
+    {
+      "round": 0,
+      "from": "requester",
+      "time": "2026-10-09T11:02:00-07:00",
+      "text": "Hi, we'd like to pilot Asana (Asana, Inc., https://asana.com) for 90 days to track our internal process-improvement projects. Around 12 seats. No customer data, just internal tasks and timelines. Target start is Monday Nov 9, 2026."
+    },
+    {
+      "round": 1,
+      "from": "bot",
+      "time": "2026-10-09T11:03:00-07:00",
+      "text": "Thanks Jordan. I have everything for the Asana pilot except one thing: who is the business owner? Please give a named person who is accountable for the pilot, not a team."
+    },
+    {
+      "round": 1,
+      "from": "requester",
+      "time": "2026-10-09T11:40:00-07:00",
+      "text": "sorry, forgot that. owner is Sam Ortiz, our Ops Program Manager."
+    }
+  ],
+  "approver_replies": [
+    {"time": "2026-10-10T09:15:00-07:00", "approver": "Rachel Adeyemi [SYNTHESIZED]", "role": "manager", "decision": "approved", "conditions": [], "note": "Approved for 90 days, 12 seats. Sam owns it."}
+  ],
+  "expected": {
+    "intake": {
+      "after_first_message": {"ask_for": ["business_owner"], "confirm": [], "fill_from_research": []},
+      "rounds_used": 1,
+      "complete": true,
+      "fields": {
+        "vendor_legal_name": {"value": "Asana, Inc.", "raw_text": "Asana, Inc.", "from": "requester", "confirmed": true},
+        "website": {"value": "https://asana.com", "raw_text": "https://asana.com", "from": "requester", "confirmed": true},
+        "touches_customer_data": {"value": false, "raw_text": "No customer data, just internal tasks and timelines.", "from": "requester", "confirmed": true},
+        "business_owner": {"value": "Sam Ortiz [SYNTHESIZED], Ops Program Manager", "raw_text": "owner is Sam Ortiz, our Ops Program Manager", "from": "requester", "confirmed": true},
+        "target_start_date": {"value": "2026-11-09", "raw_text": "Monday Nov 9, 2026", "from": "requester", "confirmed": true}
+      },
+      "context": {"pilot_length_days": 90, "seats_requested": 12, "use_case": "Track internal process-improvement projects [SYNTHESIZED]"}
+    },
+    "pack": {
+      "rows": null,
+      "produced_by": "research step (PR 5)",
+      "must_pass": "every row has a source URL or not_found; R1, R3, R4, R10 have values",
+      "r3_should_show_acme_customer_data": false
+    },
+    "routing": {
+      "gate_checks": {"intake_complete": true, "pack_complete": true, "business_owner_is_named_person": true},
+      "blocked_until": "business_owner filled (after round 1 reply at 2026-10-09T11:40:00-07:00)",
+      "route": ["manager"],
+      "approvers": {"manager": "Rachel Adeyemi [SYNTHESIZED]"},
+      "reason": "Requester says Asana will hold only internal tasks and timelines, so no Security review. If pack R3 shows Acme customer data, Security is added and the mismatch is flagged."
+    },
+    "status": {
+      "decision": "approved",
+      "decided_at": "2026-10-10T09:15:00-07:00",
+      "approved_by": [
+        {"name": "Rachel Adeyemi [SYNTHESIZED]", "role": "manager", "at": "2026-10-10T09:15:00-07:00"}
+      ],
+      "nudges": [],
+      "days_open": 0.9,
+      "exceptions": {"missing_intake_fields": 1, "not_found_pack_rows": null, "rejections": 0, "total": null}
+    }
+  }
+}
