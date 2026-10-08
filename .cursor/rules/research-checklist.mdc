@@ -1,0 +1,47 @@
+---
+description: What "enough research" means for a vendor research pack (R1-R11), as a machine-checkable checklist
+alwaysApply: false
+---
+
+# Research checklist
+
+Sources follow `data-boundaries.mdc` (public pages only).
+
+## Row format
+Every row has: `item`, `value`, `source_url`, `checked_date` (`YYYY-MM-DD`), `status` (`found` | `not_found`).
+- `found`: a value plus the exact URL it came from, plus the date checked.
+- `not_found`: the words "not found" plus the URL(s) that were checked.
+- An item may have sub-rows (e.g. R10a, R10b), each in the same format.
+
+## Items
+| # | Item | Must have a value? |
+|---|---|---|
+| R1 | Legal entity name and HQ | Yes |
+| R2 | What the product does (one line) | No |
+| R3 | Data it would touch | Yes |
+| R4 | Security certifications / trust page | Yes |
+| R5 | Audit report access (e.g. SOC 2 Type II) | No |
+| R6 | Sub-processor list | No |
+| R7 | Data residency options | No |
+| R8 | SSO / MFA | No |
+| R9 | DPA and breach-notice terms | No |
+| R10 | Public pricing + estimated pilot cost | Yes (a "Talk to Sales" tier is fine if another tier is priced) |
+| R11 | AI / model use of customer data | No (optional) |
+
+## Enough research means
+- R1-R10 each have a row. R11 is optional.
+- Every row has a `source_url`.
+- R1, R3, R4 and R10 are `found`. If not, the pack goes to a person before routing.
+
+## Never invent a link
+- Every `source_url` must appear in the run's fetch log (URL, HTTP status, time) with HTTP 200.
+- If a page can't be fetched, the item is `not_found`. Do not guess a URL.
+- Starter pages to look for: pricing, trust or security, sub-processor list, DPA, main services agreement, data residency. The legal name and sub-processors are often only in legal or help-center pages.
+
+## Pilot cost (R10)
+- Estimate = seats × monthly price × months. Label it `[ASSUMPTION]`.
+- Use monthly prices for a pilot. Annual prices mean a 12-month commitment.
+- Read the pack as a whole: if a finding limits which tier is acceptable (e.g. data residency only on a higher tier), estimate with that tier.
+
+## Cross-check
+Compare intake `touches_customer_data` with R3. If they disagree, flag it (see `approval-policy.mdc`).

@@ -1,0 +1,32 @@
+---
+description: The five required intake fields, what counts as a valid value, and how follow-ups work
+alwaysApply: false
+---
+
+# Intake policy
+
+## Every field stores where its answer came from
+Each field has `value`, `raw_text` (the requester's exact words), `from` (`requester` or `research`) and `confirmed` (true/false).
+
+## The five required fields (from Maya's email)
+| Field | Valid value | Not valid |
+|---|---|---|
+| `vendor_legal_name` | Legal entity name, e.g. "Zendesk, Inc." May come from research (pack R1) only with a source URL. | Brand name only ("Zendesk") with no source URL |
+| `website` | A URL, normalized to `https://` | Empty, or a name that isn't a URL |
+| `touches_customer_data` | Explicit `true` or `false`, with `confirmed = true` | Empty, "not sure", or a hedged answer ("I guess yes") that hasn't been confirmed |
+| `business_owner` | A named person (first and last name) | "me", "us", "the team", a team or role name. "I'll own it" resolves to the sender's name, then is confirmed. |
+| `target_start_date` | ISO date `YYYY-MM-DD`, on or after today | "asap", "next month", "Q4", or a past date |
+
+## Follow-ups
+- A script decides which fields are missing or invalid. The model only words the question.
+- Ask only for missing or invalid fields, plus confirmation of any hedged or resolved answer, in one message.
+- A legal name that research can fill with a source URL is not re-asked.
+- At most 2 follow-up rounds. Re-run the field check after each reply.
+- Do not route until all five fields are valid.
+
+## Optional context
+`seats` and `pilot_length_days` feed the cost estimate. They are never required, and are asked only alongside a real missing field.
+
+## Counting (for `status-and-audit.mdc`)
+- Missing field: a field the requester had to be asked for because it was empty or invalid after the first message.
+- Not missing: a legal name filled from research, or a hedged or resolved answer that only needed confirming. Hedged answers are logged as `hedged`.
