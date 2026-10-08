@@ -1,4 +1,4 @@
-.PHONY: help setup validate research route status audit clean
+.PHONY: help setup validate research route status audit clean test
 
 help:
 	@echo "Acme Vendor Onboarding - Available Commands"
@@ -38,3 +38,6 @@ clean:
 	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	@echo "✓ Clean complete"
+
+test:
+	python3 -m unittest discover -s tests -v
