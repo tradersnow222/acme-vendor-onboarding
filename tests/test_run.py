@@ -51,7 +51,7 @@ class RunTest(unittest.TestCase):
                 lines = result.stdout.splitlines()
                 self.assertEqual(len(lines), 8)
                 self.assertEqual(lines[0], "1. [script] Intake check: complete")
-                self.assertEqual(lines[1], "2. [model] Follow-up questions: not built yet")
+                self.assertEqual(lines[1], "2. [script] Follow-up questions: not built yet")
                 self.assertEqual(lines[3], "4. [model] Research: not built yet")
                 self.assertEqual(lines[4], pack_line)
                 self.assertEqual(lines[5], route_line)

@@ -25,7 +25,7 @@ def run(name):
     missing = intake["ask_for"] + intake["confirm"] + intake["fill_from_research"]
     step(1, "script", "Intake check", "complete" if intake["complete"] else f"missing {', '.join(missing)}")
 
-    step(2, "model", "Follow-up questions", NOT_BUILT)
+    step(2, "script", "Follow-up questions", NOT_BUILT)
 
     tickets_dir = tempfile.mkdtemp(prefix="acme-tickets-")
     create_ticket(request_id, fields, tickets_dir)
