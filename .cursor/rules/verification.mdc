@@ -1,0 +1,14 @@
+---
+description: What counts as tested and done in this repo
+alwaysApply: true
+---
+
+# Verification
+
+Prove it works by checking the real output, not an agent's summary. (Adapted from pstack: prove it works, test behavior not implementation, failing test before the fix.)
+
+- Tests call a script the way a user would, on a sample in `data/samples/`, and assert the exact `expected` value from that sample file.
+- Delete any test that would still pass if the function returned `None`.
+- A bug fix lands as two commits in order: a failing test that shows the bug, then the fix that makes it pass.
+- "Done" means `make test` passes, and `make run SAMPLE=<name>` prints the expected outcome once it exists. Paste the command and its output in the pull request.
+- No narrating comments in scripts or tests. Remove AI-style filler code before committing.
