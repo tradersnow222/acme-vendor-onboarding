@@ -1,4 +1,4 @@
-.PHONY: help setup validate research route status audit clean test
+.PHONY: help setup validate research route status audit clean test run
 
 help:
 	@echo "Acme Vendor Onboarding - Available Commands"
@@ -11,6 +11,7 @@ help:
 	@echo "  make status     - Generate status report"
 	@echo "  make audit      - Show audit log"
 	@echo "  make clean      - Remove generated files"
+	@echo "  make run SAMPLE=<zendesk|figma|asana> - Trace one sample through every step"
 
 setup:
 	@echo "Setup: Creating necessary directories..."
@@ -41,3 +42,6 @@ clean:
 
 test:
 	python3 -m unittest discover -s tests -v
+
+run:
+	@python3 -m scripts.run $(SAMPLE)
