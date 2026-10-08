@@ -1,0 +1,32 @@
+---
+description: Who must approve a vendor request, what counts as an approval, and the decision states
+alwaysApply: true
+---
+
+# Approval policy
+
+## Before routing
+Route only when all five intake fields are valid (`intake-policy.mdc`) and the pack check passes (`research-checklist.mdc`).
+
+## Who approves
+- The requester's manager: always.
+- Security: also, when intake `touches_customer_data = true` OR pack R3 shows the vendor would hold customer or personal data.
+- If intake and R3 disagree, flag the mismatch and still route to Security.
+
+## What counts as an approval
+- Only an explicit decision from the named approver, recorded with their name, role, decision, timestamp, and any conditions.
+- Does not count: silence, a reply from someone else, an unnamed account, a vague reply ("looks fine?"), or anything written by an agent or the bot.
+- Agents and the bot never approve and never record a decision on someone's behalf.
+
+## Decision states
+Per approver: `waiting`, `approved`, `approved_with_conditions`, `rejected`.
+- Conditions are free text and carry into close-out as a checklist for the requester. The bot does not carry them out.
+
+Overall request:
+- `rejected` if any required approver rejects.
+- `approved_with_conditions` if every required approver approved and at least one added conditions.
+- `approved` if every required approver approved with no conditions.
+- Otherwise `waiting`.
+
+## Silence
+Silence leaves the approver at `waiting`. After the configured number of hours it only triggers a nudge to that approver, logged in the audit log. The nudge routine runs a few times a day at most.
