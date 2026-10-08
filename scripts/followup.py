@@ -17,6 +17,8 @@ QUESTIONS = {
 def pick_followups(intake_result, rounds_done):
     if intake_result["complete"]:
         return {"questions": [], "exception": False}
+    if not intake_result["ask_for"] and not intake_result["confirm"]:
+        return {"questions": [], "exception": False}
     if rounds_done >= MAX_ROUNDS:
         return {"questions": [], "exception": True}
     questions = [
