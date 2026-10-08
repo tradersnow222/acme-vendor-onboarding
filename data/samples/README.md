@@ -24,4 +24,5 @@ Vendors are real public companies. Every Acme person, message, time, and approve
 ## Notes
 - Days open runs from the first requester message to the last required named approval.
 - Exceptions = missing intake fields + "not found" pack rows + rejections. For Figma and Asana, `not_found_pack_rows` and `total` are `null` until their packs exist.
-- The Zendesk pack has 14 rows (12 found, 2 not found). The hand-run notes say "13 of 15 rows", which is a counting slip; the rows themselves are unchanged.
+- The Zendesk pack has 14 rows (12 found, 2 not found).
+- Audit timestamps follow one synthesized timeline that starts with the request at 9:12 AM PT on Oct 8. The research content in the hand-run is real and public.

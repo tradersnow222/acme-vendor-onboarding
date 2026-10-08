@@ -38,7 +38,7 @@
     },
     "pack": {
       "rows": null,
-      "produced_by": "research step (PR 5)",
+      "produced_by": "research step",
       "must_pass": "every row has a source URL or not_found; R1, R3, R4, R10 have values",
       "r3_should_show_acme_customer_data": false
     },
