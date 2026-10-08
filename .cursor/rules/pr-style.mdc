@@ -14,5 +14,6 @@ Pull requests are the context trail for people and AI agents who read this repo 
   - **How it was checked:** what you ran and what happened.
   - **Open questions:** only if there are any.
 - Write short, full sentences in plain words. Explain any label or acronym the first time it appears.
-- One topic per pull request. If it needs a long explanation, split it into two.
+- **Keep it small.** One script, rule, or skill per pull request, plus its test. Aim for under about 200 changed lines. If it needs a long explanation, split it.
+- Small pull requests make debugging easier, because a problem points to one change. Fixes found later get their own pull request; don't fold them into unrelated work.
 - Refer to other pull requests by number (#3), not by their place in a plan.
