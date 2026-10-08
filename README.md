@@ -50,7 +50,7 @@ When someone wants to pilot a vendor, the process has three stages but four key 
    - Anyone can ask for status without hunting through email
 
 2. **Cursor holds the durable structure**
-   - **Rules**: Data boundaries, approval policy, research checklist, commit hygiene, git workflow
+   - **Rules** (`.cursor/rules/`): `data-boundaries`, `intake-policy`, `research-checklist`, `approval-policy`, `status-and-audit`, `git-workflow` (includes commit hygiene)
    - **Skills**: `validate-intake`, `build-research-pack`
    - **Scripts**: Field check, routing logic, audit log (with cost tracking), status generator, Cursor API launcher
 
@@ -100,7 +100,7 @@ acme-vendor-onboarding/
 ├── data/samples/     # Sample vendor requests (synthesized)
 ├── packs/            # Generated research packs (output directory)
 ├── runs/             # Cloud agent run logs and artifacts
-├── .cursor/rules/    # Cursor rules (data boundaries, approval policy, git workflow)
+├── .cursor/rules/    # Cursor rules (data boundaries, intake, research checklist, approval, status/audit, git)
 └── README.md         # This file
 ```
 
@@ -268,7 +268,7 @@ acme-vendor-onboarding/
 ├── data/samples/     # Sample vendor requests (synthesized data)
 ├── packs/            # Generated research packs (output, not committed)
 ├── runs/             # Cloud agent run logs (output, not committed)
-├── .cursor/rules/    # Cursor rules (data boundaries, approval policy, git workflow)
+├── .cursor/rules/    # Cursor rules (data boundaries, intake, research checklist, approval, status/audit, git)
 ├── .gitignore        # Ignore packs/, runs/, Python cache
 ├── AGENTS.md         # Agent guidelines (git workflow, data boundaries)
 ├── README.md         # This file
