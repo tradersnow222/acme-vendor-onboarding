@@ -13,6 +13,7 @@ FIRST_MESSAGE_OVERRIDES = {
     "zendesk": {
         "vendor_legal_name": {"value": "Zendesk", "raw_text": "Zendesk", "from": "requester", "confirmed": False},
         "touches_customer_data": {"value": True, "raw_text": "I guess yes it touches customer data", "from": "requester", "confirmed": False},
+        "business_owner": {"value": "Priya Raman [SYNTHESIZED], Customer Support Lead", "raw_text": "I'll own it on our side", "from": "requester", "confirmed": False},
         "target_start_date": {"value": "asap", "raw_text": "asap", "from": "requester", "confirmed": False},
     },
     "figma": {},
