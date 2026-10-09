@@ -60,20 +60,55 @@ class RequestApprovalsTest(unittest.TestCase):
         self.assertEqual(self.ticket_file.read_bytes(), before)
         self.assertFalse(audit_path("VR-0001", self.runs).exists())
 
-    def test_requests_each_routed_approver(self):
+    def waiting(self, name):
+        return {"name": name, "decision": "waiting", "at": None, "conditions": [],
+                "requested_at": "2026-10-08T09:36:00-07:00"}
+
+    def configured_name(self, role):
+        person = self.sample["people"][role]
+        return f"{person['name']}, {person['role']}"
+
+    def test_requests_each_routed_approver_by_name(self):
         result = self.request_zendesk()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout,
-                         "VR-0001: approval requested from manager, security at 2026-10-08T09:36:00-07:00\n")
+                         "VR-0001: approval requested from manager (Daniel Okafor [SYNTHESIZED]), "
+                         "security (Lena Hoffmann [SYNTHESIZED]) at 2026-10-08T09:36:00-07:00\n")
         ticket = read_ticket("VR-0001", self.tickets)
         self.assertEqual(ticket["route"], ["manager", "security"])
         self.assertEqual(ticket["route"], self.sample["expected"]["routing"]["route"])
-        waiting = {"name": None, "decision": "waiting", "at": None, "conditions": [],
-                   "requested_at": "2026-10-08T09:36:00-07:00"}
-        self.assertEqual(ticket["approvers"], {"manager": waiting, "security": waiting})
+        self.assertEqual(ticket["approvers"], {"manager": self.waiting(self.configured_name("manager")),
+                                               "security": self.waiting(self.configured_name("security"))})
         rows = read_audit("VR-0001", self.runs)
         self.assertEqual([(r["step"], r["outcome"]) for r in rows],
                          [("Approval requested", "manager asked"), ("Approval requested", "security asked")])
+
+    def test_config_without_approvers_still_routes(self):
+        config = Path(self.tmp.name) / "approvals.json"
+        config.write_text('{"stale_after_hours": 20}\n')
+        self.mark_research_done("VR-0001")
+        result = self.run_request("--ticket", "VR-0001", "--at", CARDS_SENT_AT, "--today", "2026-10-08",
+                                  "--config", str(config))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout,
+                         "VR-0001: approval requested from manager (no approver named in config), "
+                         "security (no approver named in config) at 2026-10-08T09:36:00-07:00\n")
+        ticket = read_ticket("VR-0001", self.tickets)
+        self.assertEqual(ticket["approvers"], {"manager": self.waiting(None), "security": self.waiting(None)})
+
+    def test_existing_name_is_kept(self):
+        ticket = read_ticket("VR-0001", self.tickets)
+        ticket["approvers"]["manager"] = {"name": "Aisha Karim [SYNTHESIZED], VP Product",
+                                          "decision": "waiting", "at": None, "conditions": []}
+        write_ticket(ticket, "VR-0001", self.tickets)
+        result = self.request_zendesk()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout,
+                         "VR-0001: approval requested from manager (Aisha Karim [SYNTHESIZED]), "
+                         "security (Lena Hoffmann [SYNTHESIZED]) at 2026-10-08T09:36:00-07:00\n")
+        ticket = read_ticket("VR-0001", self.tickets)
+        self.assertEqual(ticket["approvers"]["manager"], self.waiting("Aisha Karim [SYNTHESIZED], VP Product"))
+        self.assertEqual(ticket["approvers"]["security"], self.waiting(self.configured_name("security")))
 
     def test_second_run_keeps_original_times(self):
         self.request_zendesk()
@@ -93,7 +128,8 @@ class RequestApprovalsTest(unittest.TestCase):
         result = self.run_request("--ticket", "VR-0002", "--at", figma["messages"][0]["time"],
                                   "--today", "2026-10-09")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, "VR-0002: approval requested from manager at 2026-10-09T10:05:00-07:00\n")
+        self.assertEqual(result.stdout, "VR-0002: approval requested from manager (Daniel Okafor [SYNTHESIZED]) "
+                                        "at 2026-10-09T10:05:00-07:00\n")
         ticket = read_ticket("VR-0002", self.tickets)
         self.assertEqual(ticket["route"], ["manager"])
         self.assertEqual(ticket["route"], figma["expected"]["routing"]["route"])
