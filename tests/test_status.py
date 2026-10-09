@@ -127,6 +127,33 @@ class StatusTest(unittest.TestCase):
             "steps: 10 script, 4 model, 4 person",
         ])
 
+    def test_new_ticket_without_audit_rows(self):
+        sample = load_sample("figma")
+        now = "2026-10-09T15:05:00-07:00"
+        ticket = create_ticket("VR-0002", sample["expected"]["intake"]["fields"], self.tickets_dir)
+        ticket["created_at"] = sample["messages"][0]["time"]
+        ticket_path("VR-0002", self.tickets_dir).write_text(json.dumps(ticket, indent=2) + "\n")
+        status = build_status(ticket, [], now)
+        self.assertEqual(status, {
+            "decision": "waiting",
+            "approvers": {"manager": {"name": None, "decision": "waiting", "at": None, "conditions": []}},
+            "days_open": 0.2,
+            "exceptions": {"missing_intake_fields": 0, "not_found_pack_rows": 0, "rejections": 0, "total": 0},
+            "hedged_answers": 0,
+            "nudges": 0,
+            "steps_by_actor_type": {},
+        })
+        self.runs_dir.mkdir()
+        result = subprocess.run(
+            [sys.executable, "-m", "scripts.status", "--ticket", "VR-0002", "--tickets-dir", str(self.tickets_dir),
+             "--runs-dir", str(self.runs_dir), "--now", now],
+            cwd=REPO_ROOT, capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("VR-0002: waiting", result.stdout)
+        self.assertIn("days open: 0.2", result.stdout)
+        self.assertIn("steps: 0 script, 0 model, 0 person", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
