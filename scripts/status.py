@@ -53,7 +53,7 @@ def build_status(ticket, audit_rows, now):
     end = now
     if decision != "waiting":
         end = max((a["at"] for a in approvers.values() if a["at"]), key=datetime.fromisoformat)
-    opened = datetime.fromisoformat(audit_rows[0]["timestamp_pt"])
+    opened = datetime.fromisoformat(audit_rows[0]["timestamp_pt"] if audit_rows else ticket["created_at"])
     days_open = round((datetime.fromisoformat(end) - opened).total_seconds() / 86400, 1)
     counts = ticket["counts"]
     exceptions = {
