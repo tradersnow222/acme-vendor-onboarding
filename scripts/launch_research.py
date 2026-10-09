@@ -28,8 +28,9 @@ def build_prompt(ticket):
         f"The vendor is {intake['vendor_legal_name']['value']} ({intake['website']['value']}). "
         f"Write only under packs/{request_id}/. Use public pages only. "
         "Do not edit any other file. Do not open a pull request. "
-        f"End your final reply with the full contents of packs/{request_id}/pack.json "
-        f"and packs/{request_id}/fetch_log.csv."
+        f"End your final reply with packs/{request_id}/pack.json in one ```json fenced block "
+        f"and packs/{request_id}/fetch_log.csv in one ```csv fenced block whose first line is url,http_status,fetched_at. "
+        "Put each fence on its own line and nothing else inside the blocks."
     )
 
 
