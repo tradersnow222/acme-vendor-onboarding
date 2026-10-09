@@ -7,6 +7,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime
 
+from scripts.status import RUNS_DIR, append_audit_row
 from scripts.ticket import TICKETS_DIR, read_ticket, ticket_path
 
 API_URL = "https://api.cursor.com/v1/agents"
@@ -79,6 +80,7 @@ def main(argv):
     )
     parser.add_argument("--ticket", help="request id of the ticket, e.g. VR-0001")
     parser.add_argument("--tickets-dir", default=TICKETS_DIR, help="folder the ticket files live in")
+    parser.add_argument("--runs-dir", default=RUNS_DIR, help="folder the audit logs live in")
     parser.add_argument("--model", help="model id for the agent; omit to use the account default")
     parser.add_argument("--live", action="store_true", help="send the request (default is a dry run)")
     args = parser.parse_args(argv)
@@ -120,6 +122,14 @@ def main(argv):
         "launched_at": datetime.now().astimezone().isoformat(timespec="seconds"),
     })
     write_ticket(ticket, args.tickets_dir)
+    append_audit_row(args.ticket, {
+        "step": "Research launched",
+        "actor_type": "script",
+        "actor": "scripts.launch_research",
+        "timestamp_pt": research["launched_at"],
+        "outcome": f"agent {agent['id']} started",
+        "data_label": "PUBLIC",
+    }, args.runs_dir)
     print(f"{args.ticket}: research agent started: {agent['id']} {agent['url']}")
     return 0
 

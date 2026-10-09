@@ -13,6 +13,7 @@ from unittest import mock
 from scripts import launch_research
 from scripts.fetch_pack import extract_pack
 from scripts.samples import load_sample
+from scripts.status import audit_path, read_audit
 from scripts.ticket import create_ticket, read_ticket, ticket_path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -46,6 +47,7 @@ class LaunchResearchTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = self.tmp.name
+        self.runs = str(Path(self.dir) / "runs")
         create_ticket("VR-0001", load_sample("zendesk")["expected"]["intake"]["fields"], self.dir)
 
     def tearDown(self):
@@ -60,12 +62,13 @@ class LaunchResearchTest(unittest.TestCase):
     def run_live(self):
         out = io.StringIO()
         with mock.patch.dict(os.environ, {"CURSOR_API_KEY": FAKE_KEY}), contextlib.redirect_stdout(out):
-            code = launch_research.main(["--ticket", "VR-0001", "--tickets-dir", self.dir, "--live"])
+            code = launch_research.main(["--ticket", "VR-0001", "--tickets-dir", self.dir,
+                                         "--runs-dir", self.runs, "--live"])
         return code, out.getvalue()
 
     def test_dry_run_prints_request_without_key_or_ticket_change(self):
         before = ticket_path("VR-0001", self.dir).read_bytes()
-        result = self.run_cli("--ticket", "VR-0001", "--tickets-dir", self.dir,
+        result = self.run_cli("--ticket", "VR-0001", "--tickets-dir", self.dir, "--runs-dir", self.runs,
                               env={**os.environ, "CURSOR_API_KEY": FAKE_KEY})
         self.assertEqual(result.returncode, 0, result.stderr)
         for text in ["POST https://api.cursor.com/v1/agents",
@@ -76,6 +79,7 @@ class LaunchResearchTest(unittest.TestCase):
         self.assertEqual(result.stdout.splitlines()[-1],
                          "Dry run: nothing was sent. Add --live to launch the research agent.")
         self.assertEqual(ticket_path("VR-0001", self.dir).read_bytes(), before)
+        self.assertFalse(audit_path("VR-0001", self.runs).exists())
 
     def test_live_without_key_fails(self):
         env = {k: v for k, v in os.environ.items() if k != "CURSOR_API_KEY"}
@@ -116,6 +120,14 @@ class LaunchResearchTest(unittest.TestCase):
             self.assertEqual(out, "VR-0001: research agent already started: "
                                   "bc-fake-0001 https://cursor.com/agents/bc-fake-0001\n")
             self.assertEqual(stub.call_count, 1)
+
+        rows = read_audit("VR-0001", self.runs)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["timestamp_pt"], research["launched_at"])
+        self.assertEqual({k: rows[0][k] for k in ("step_id", "step", "actor_type", "actor", "outcome", "data_label")}, {
+            "step_id": "1", "step": "Research launched", "actor_type": "script",
+            "actor": "scripts.launch_research", "outcome": "agent bc-fake-0001 started", "data_label": "PUBLIC",
+        })
 
     def test_prompt_reply_format_matches_fetch_pack(self):
         prompt = launch_research.build_prompt(read_ticket("VR-0001", self.dir))

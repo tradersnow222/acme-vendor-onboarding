@@ -6,10 +6,13 @@ import re
 import sys
 import urllib.error
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 
 from scripts import write_back
+from scripts.check_pack import check_pack
 from scripts.launch_research import API_URL, NO_KEY
+from scripts.status import RUNS_DIR, append_audit_row
 from scripts.ticket import TICKETS_DIR, read_ticket, ticket_path
 
 PACKS_DIR = Path(__file__).resolve().parent.parent / "packs"
@@ -91,6 +94,7 @@ def main(argv):
     parser.add_argument("--ticket", help="request id of the ticket, e.g. VR-0001")
     parser.add_argument("--tickets-dir", default=TICKETS_DIR, help="folder the ticket files live in")
     parser.add_argument("--packs-dir", default=PACKS_DIR, help="folder to save the pack under")
+    parser.add_argument("--runs-dir", default=RUNS_DIR, help="folder the audit logs live in")
     parser.add_argument("--reply-file", help="read the final reply from this file instead of the API")
     parser.add_argument("--live", action="store_true", help="call the Cursor API (default is a dry run)")
     args = parser.parse_args(argv)
@@ -133,7 +137,21 @@ def main(argv):
     pack_path.write_text(json.dumps(pack, indent=2) + "\n")
     if fetch_log is not None:
         (pack_dir / "fetch_log.csv").write_text(fetch_log)
-    return write_back.main(["--ticket", args.ticket, "--pack", str(pack_path), "--tickets-dir", str(args.tickets_dir)])
+    code = write_back.main(["--ticket", args.ticket, "--pack", str(pack_path), "--tickets-dir", str(args.tickets_dir)])
+    result = check_pack(pack["rows"])
+    if result["passed"]:
+        outcome = f"pack check PASS ({len(pack['rows'])} rows, {result['not_found']} not_found)"
+    else:
+        outcome = f"pack check FAIL: {'; '.join(result['reasons'])}"
+    append_audit_row(args.ticket, {
+        "step": "Research pack built",
+        "actor_type": "model",
+        "actor": f"Cursor cloud agent {'reply-file' if args.reply_file else research['agent_id']}",
+        "timestamp_pt": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "outcome": outcome,
+        "data_label": "PUBLIC",
+    }, args.runs_dir)
+    return code
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ from unittest import mock
 
 from scripts import fetch_pack
 from scripts.samples import load_sample
+from scripts.status import read_audit
 from scripts.ticket import create_ticket, read_ticket, ticket_path
 from scripts.write_back import write_ticket
 
@@ -33,6 +34,7 @@ class FetchPackTest(unittest.TestCase):
         self.dir = Path(self.tmp.name)
         self.tickets = self.dir / "tickets"
         self.packs = self.dir / "packs"
+        self.runs = self.dir / "runs"
         sample = load_sample("zendesk")
         ticket = create_ticket("VR-0001", sample["expected"]["intake"]["fields"], self.tickets)
         ticket["research"]["agent_id"] = "bc-fake-0001"
@@ -44,7 +46,11 @@ class FetchPackTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def dirs(self):
-        return ["--tickets-dir", str(self.tickets), "--packs-dir", str(self.packs)]
+        return ["--tickets-dir", str(self.tickets), "--packs-dir", str(self.packs), "--runs-dir", str(self.runs)]
+
+    def audit(self):
+        return [(r["step"], r["actor_type"], r["actor"], r["outcome"], r["data_label"])
+                for r in read_audit("VR-0001", self.runs)]
 
     def run_cli(self, *args, env=None):
         return subprocess.run(
@@ -82,6 +88,8 @@ class FetchPackTest(unittest.TestCase):
         again = self.run_with_reply(build_reply(self.pack))
         self.assertEqual(again.returncode, 0)
         self.assertEqual(again.stdout, f"VR-0001: pack already written back: {pack_path}\n")
+        self.assertEqual(self.audit(), [("Research pack built", "model", "Cursor cloud agent reply-file",
+                                         "pack check PASS (14 rows, 2 not_found)", "PUBLIC")])
 
     def test_live_finished_run_writes_back(self):
         code, out, _, stub = self.run_live({"id": "run-fake-0001", "status": "FINISHED", "result": build_reply(self.pack)})
@@ -89,12 +97,24 @@ class FetchPackTest(unittest.TestCase):
         self.assertEqual(out, PASS_LINE)
         self.assertEqual([c.args for c in stub.call_args_list], [(AGENT_URL, FAKE_KEY), (RUN_URL, FAKE_KEY)])
         self.assertEqual(read_ticket("VR-0001", self.tickets)["research"]["status"], "done")
+        self.assertEqual(self.audit(), [("Research pack built", "model", "Cursor cloud agent bc-fake-0001",
+                                         "pack check PASS (14 rows, 2 not_found)", "PUBLIC")])
 
     def test_live_running_run_writes_nothing(self):
         code, out, _, _ = self.run_live({"id": "run-fake-0001", "status": "RUNNING"})
         self.assertEqual(code, 3)
         self.assertEqual(out, "VR-0001: research run run-fake-0001 is RUNNING; try again later\n")
         self.assert_nothing_written()
+        self.assertEqual(self.audit(), [])
+
+    def test_failing_pack_check_writes_fail_row(self):
+        pack = {**self.pack, "rows": [r for r in self.pack["rows"] if r["id"] != "R2"]}
+        result = self.run_with_reply(build_reply(pack))
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "VR-0001: pack check FAIL\n- R2 has no row\n")
+        self.assertEqual(ticket_path("VR-0001", self.tickets).read_bytes(), self.ticket_bytes)
+        self.assertEqual(self.audit(), [("Research pack built", "model", "Cursor cloud agent reply-file",
+                                         "pack check FAIL: R2 has no row", "PUBLIC")])
 
     def test_live_without_key_fails(self):
         code, _, err, stub = self.run_live({}, key="")
