@@ -55,6 +55,10 @@ class PickFollowupsTest(unittest.TestCase):
         result = pick_followups(asana_result(business_owner={"value": None, "raw_text": ""}), 2)
         self.assertEqual(result, {"questions": [], "exception": True})
 
+    def test_research_only_leftovers_after_two_rounds_are_not_an_exception(self):
+        result = pick_followups(asana_result(vendor_legal_name={"value": "Asana", "raw_text": "Asana"}), 2)
+        self.assertEqual(result, {"questions": [], "exception": False})
+
     def test_complete_intake_asks_nothing(self):
         self.assertEqual(pick_followups(asana_result(), 1), {"questions": [], "exception": False})
 
