@@ -83,30 +83,94 @@ When someone wants to pilot a vendor, the process has three stages but four key 
 
 ## How to Run
 
-*(Placeholder — will be added in later PRs)*
+You need Python 3.9 or newer. There is nothing to pip install. Run every command from the repo root.
 
-This section will include:
-- Prerequisites (Python 3.x, environment setup)
-- Command to run intake validation
-- Command to trigger research pack generation
-- Command to check approval routing
-- Command to generate status report
-- Sample data location and usage
+### 1. Set up
 
-For now, the project structure is in place:
+```bash
+make setup
+```
+
+You should see `✓ Project structure ready`.
+
+### 2. Test
+
+```bash
+make test
+```
+
+Without make, run `python3 -m unittest discover -s tests -v`. The last line should be `OK`.
+
+### 3. Trace one sample with one command
+
+```bash
+make run SAMPLE=zendesk
+make run SAMPLE=figma
+make run SAMPLE=asana
+```
+
+Each step prints one numbered line, labeled `[script]`, `[model]`, or `[person]` for who does that step.
+
+- `zendesk` is the worked example: one follow-up round, then routed to the manager plus Security.
+- `figma` is a clean request: no follow-ups, routed to the manager only.
+- `asana` is the exception: the business owner is missing, so it is chased in round 1.
+
+`make run` is always a dry run: no network and no key. Its ticket and audit files go to temp folders, printed in steps 3 and 8.
+
+### 4. Step by step on one request
+
+These commands write to `tickets/`, `packs/`, and `runs/`, which git ignores.
+
+```bash
+python3 -m scripts.ticket zendesk
+python3 -m scripts.launch_research --ticket VR-0001
+python3 -m scripts.fetch_pack --ticket VR-0001 --reply-file <saved reply>
+python3 -m scripts.status --ticket VR-0001
+```
+
+1. `scripts.ticket` writes `tickets/VR-0001.json`.
+2. `scripts.launch_research` prints the Cursor API request it would send (dry run).
+3. `scripts.fetch_pack` pulls the pack out of the research agent's final reply into `packs/VR-0001/`. It writes the pack back to the ticket only if the pack check passes.
+4. `scripts.status` prints the status from the ticket and `runs/VR-0001/audit.csv`.
+
+### Dry run vs live
+
+Dry run is the default everywhere. `--live` is the only way to spend money. The key comes only from the `CURSOR_API_KEY` environment variable, never from a file or a flag.
+
+```bash
+python3 -m scripts.launch_research --ticket VR-0001 --live
+python3 -m scripts.fetch_pack --ticket VR-0001 --live
+```
+
+Run `launch_research --live`, wait for the agent, then run `fetch_pack --live`. If `fetch_pack` exits with code 3, the agent is still running; run it again later.
+
+### Other make targets
+
+```bash
+make validate SAMPLE=<name>
+make route SAMPLE=<name>
+make research TICKET=<id>
+make status TICKET=<id>
+make audit TICKET=<id>
+make clean
+```
+
+### Folder layout
+
 ```
 acme-vendor-onboarding/
-├── scripts/          # Python scripts for validation, routing, audit, status
-├── data/samples/     # Sample vendor requests (synthesized)
-├── packs/            # Generated research packs (output directory)
-├── runs/             # Cloud agent run logs and artifacts
+├── scripts/          # Python scripts (intake check, follow-up, ticket, routing, approvals, audit, status, Cursor API)
+├── tests/            # Unit tests run by make test
+├── data/samples/     # Sample vendor requests (synthesized) with expected outputs
+├── templates/        # Research pack template
+├── config/           # Approval settings (nudge after N hours)
+├── tickets/          # One ticket file per request (output, git-ignored)
+├── packs/            # Research packs (output, git-ignored)
+├── runs/             # Audit logs and agent run files (output, git-ignored)
 ├── .cursor/rules/    # Cursor rules (data boundaries, intake, research checklist, approval, status/audit, git)
+├── .cursor/skills/   # Skills (validate-intake, build-research-pack)
+├── Makefile          # make setup, test, run, and the targets above
 └── README.md         # This file
-```
-
-To run anything:
-```bash
-# Placeholder: will add Makefile or clear run instructions in later PRs
 ```
 
 ---
@@ -115,17 +179,20 @@ To run anything:
 
 | Component               | Status      | Notes                                                                 |
 |------------------------|-------------|-----------------------------------------------------------------------|
-| Grok Bot intake         | Planned     | Will collect five required fields, chase missing ones                 |
-| Field validation        | Planned     | Script to check completeness before routing                           |
-| Research pack template  | Planned     | Standard template with website, trust page, pricing sections          |
-| Cloud agent (via API)   | Planned     | Cursor API call to start agent that builds research pack              |
+| Grok Bot intake         | Live        | The Acme Vendors bot; `make run` replays the sample messages instead  |
+| Field validation        | Live        | Script, runs locally                                                  |
+| Follow-up picker        | Live        | Script, runs locally                                                  |
+| Research pack template  | Live        | `templates/research_pack.json`                                        |
+| Pack checker            | Live        | Script, runs locally                                                  |
+| Cloud agent (via API)   | Live        | Cursor API call with `--live`; dry run by default                     |
 | Public data sources     | Live        | Real vendor websites, trust pages, pricing (public only)              |
 | Sample requesters       | Synthesized | Fictional Acme requesters, managers, approvers, labeled [SYNTHESIZED] in `data/samples/` |
 | Sample vendors          | Mixed       | Real public companies (Zendesk, Figma, Asana); pilot details synthesized |
 | Zendesk research pack   | Public      | Hand-run from public vendor pages on Oct 8, 2026; kept as the expected pack in `data/samples/` |
-| Approval routing        | Planned     | Script to route based on customer data flag                           |
-| Audit log               | Planned     | CSV/JSON log with who, when, what, cost                               |
-| Status generator        | Planned     | Script to show days open, exceptions, automated vs. person            |
+| Approval routing        | Live        | Script, runs locally                                                  |
+| Approval recorder       | Live        | Script, runs locally                                                  |
+| Audit log               | Live        | Script, runs locally                                                  |
+| Status generator        | Live        | Script, runs locally                                                  |
 | Manager approvals       | Mocked      | Pre-set `approver_replies` in `data/samples/`; real humans in production |
 | Security approvals      | Mocked      | Pre-set `approver_replies` in `data/samples/`; real Security team in production |
 
