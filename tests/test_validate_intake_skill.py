@@ -21,8 +21,7 @@ def skill_commands(text):
 
 def run_command(command, placeholders):
     args = [placeholders.get(arg, arg) for arg in shlex.split(command)]
-    key = args[2] if args[1] == "-m" else args[1]
-    return key, subprocess.run(args, cwd=REPO, capture_output=True, text=True)
+    return subprocess.run(args, cwd=REPO, capture_output=True, text=True)
 
 
 class ValidateIntakeSkillTest(unittest.TestCase):
@@ -55,24 +54,30 @@ class ValidateIntakeSkillTest(unittest.TestCase):
             }
             outputs = {}
             for command in skill_commands(self.text):
-                key, result = run_command(command, placeholders)
+                result = run_command(command, placeholders)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                outputs[key] = result.stdout
+                outputs[command] = result.stdout
 
-        self.assertEqual(set(outputs), {"scripts.intake_check", "scripts.followup", "-c"})
+        self.assertNotIn("python3 -c", self.text)
+        self.assertEqual(len(skill_commands(self.text)), 3)
         self.assertEqual(
-            outputs["scripts.intake_check"],
+            outputs["python3 -m scripts.intake_check <sample> --today <YYYY-MM-DD>"],
             "VR-0003: intake complete\n  ask for: none\n  confirm: none\n  fill from research: none\n",
         )
-        self.assertEqual(outputs["scripts.followup"], "VR-0003: follow-up questions: none\n")
-        live = json.loads(outputs["-c"])
-        self.assertEqual(live["ask_for"], ["business_owner"])
-        self.assertEqual(live["complete"], False)
-        self.assertEqual(live["questions"], [{
-            "field": "business_owner",
-            "kind": "ask",
-            "question": "Who is the business owner? Please give a named person, not a team.",
-        }])
+        self.assertEqual(outputs["python3 -m scripts.followup <sample>"], "VR-0003: follow-up questions: none\n")
+        live = outputs["python3 -m scripts.followup --fields <fields.json> --today <YYYY-MM-DD> --rounds <rounds_done>"]
+        self.assertEqual(json.loads(live), {
+            "ask_for": ["business_owner"],
+            "confirm": [],
+            "fill_from_research": [],
+            "complete": False,
+            "questions": [{
+                "field": "business_owner",
+                "kind": "ask",
+                "question": "Who is the business owner? Please give a named person, not a team.",
+            }],
+            "exception": False,
+        })
 
 
 if __name__ == "__main__":

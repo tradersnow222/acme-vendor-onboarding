@@ -1,6 +1,8 @@
 import copy
+import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
@@ -68,6 +70,51 @@ class PickFollowupsTest(unittest.TestCase):
             cwd=REPO, capture_output=True, text=True, check=True,
         ).stdout
         self.assertEqual(output, "VR-0003: follow-up questions: none\n")
+
+
+class FieldsFlagTest(unittest.TestCase):
+    def setUp(self):
+        fields = copy.deepcopy(load_sample("asana")["expected"]["intake"]["fields"])
+        fields["business_owner"]["value"] = None
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.fields_file = Path(tmp.name) / "fields.json"
+        self.fields_file.write_text(json.dumps(fields))
+
+    def run_cli(self, *args):
+        return subprocess.run(
+            [sys.executable, "-m", "scripts.followup", *args],
+            cwd=REPO, capture_output=True, text=True,
+        )
+
+    def test_fields_file_asks_for_missing_owner(self):
+        result = self.run_cli("--fields", str(self.fields_file), "--today", "2026-10-09", "--rounds", "0")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), {
+            "ask_for": ["business_owner"],
+            "confirm": [],
+            "fill_from_research": [],
+            "complete": False,
+            "questions": [OWNER_QUESTION],
+            "exception": False,
+        })
+
+    def test_fields_file_after_two_rounds_is_an_exception(self):
+        result = self.run_cli("--fields", str(self.fields_file), "--today", "2026-10-09", "--rounds", "2")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = json.loads(result.stdout)
+        self.assertEqual(output["questions"], [])
+        self.assertEqual(output["exception"], True)
+
+    def test_missing_fields_file_fails_with_example(self):
+        result = self.run_cli("--fields", str(self.fields_file.with_name("missing.json")))
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(
+            result.stderr,
+            f"no fields file at {self.fields_file.with_name('missing.json')}\n"
+            "example: python3 -m scripts.followup --fields fields.json --today 2026-10-09 --rounds 0\n",
+        )
 
 
 if __name__ == "__main__":

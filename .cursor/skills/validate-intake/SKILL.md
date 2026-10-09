@@ -24,7 +24,7 @@ python3 -m scripts.followup <sample>
 For a live conversation, save the fields as JSON and run:
 
 ```
-python3 -c "import json, sys; from datetime import date; from scripts.intake_check import check_intake; from scripts.followup import pick_followups; r = check_intake(json.load(open(sys.argv[1])), date.fromisoformat(sys.argv[2])); print(json.dumps({**r, **pick_followups(r, int(sys.argv[3]))}))" <fields.json> <YYYY-MM-DD> <rounds_done>
+python3 -m scripts.followup --fields <fields.json> --today <YYYY-MM-DD> --rounds <rounds_done>
 ```
 
 ## Rules
