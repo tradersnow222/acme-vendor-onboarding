@@ -3,7 +3,7 @@
   "case": "exception_missing_business_owner",
   "summary": "Exception. Requester leaves out the business owner, so intake asks for it (round 1 of max 2). No customer data, so manager only. Ends approved.",
   "data_labels": {
-    "vendor": "PUBLIC (real company; research pack is produced later by the research step)",
+    "vendor": "PUBLIC (real company; pack facts fetched from public pages on 2026-10-09 by a Cursor cloud agent; pilot cost is an ASSUMPTION)",
     "people_messages_times_replies": "SYNTHESIZED",
     "acme": "fictional"
   },
@@ -49,10 +49,22 @@
       "context": {"pilot_length_days": 90, "seats_requested": 12, "use_case": "Track internal process-improvement projects [SYNTHESIZED]"}
     },
     "pack": {
-      "rows": null,
-      "produced_by": "research step",
-      "must_pass": "every row has a source URL or not_found; R1, R3, R4, R10 have values",
-      "r3_should_show_acme_customer_data": false
+      "rows": [
+        {"id": "R1", "item": "Legal entity", "value": "Asana, Inc. Legal notices go to 633 Folsom Street, San Francisco, CA 94107.", "source_urls": ["https://asana.com/terms/terms-of-service"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R2", "item": "What it does", "value": "Work management platform for team projects, tasks, timelines, portfolios and workload, with AI features. Sold per user per month.", "source_urls": ["https://asana.com/pricing", "https://asana.com/terms/terms-of-service"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R3", "item": "Data it would touch", "value": "\"Customer Personal Data\" = personal data the customer puts into Asana; typical categories are name, email, phone, title, and free-text projects and task lists. For company-domain accounts the customer is the controller and Asana the processor. For this pilot: 12 Acme staff accounts (names and work emails) and internal tasks and timelines. No Acme customer records.", "source_urls": ["https://asana.com/terms/data-processing", "https://asana.com/terms/privacy-statement"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R4", "item": "Certifications / trust page", "value": "Trust page lists SOC 2 Type 2, SOC 3, ISO 27001:2022, 27017, 27018, 27701, CSA STAR Level 1, HIPAA, GDPR and US state privacy laws, plus encryption, least-privilege access and a public bug bounty. Pricing page: 256-bit encryption at rest and in transit, hosted on AWS.", "source_urls": ["https://asana.com/trust", "https://asana.com/pricing"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R5", "item": "Audit report access", "value": "The SOC 2 Type 2 report is not public. Asana's Data Security Standards say it makes the SOC 2 Type 2 report, ISO certificates, questionnaires and a penetration-test summary available to customers; the trust page links them through Asana's Trust Center. A person must request it.", "source_urls": ["https://asana.com/terms/security-standards", "https://asana.com/trust"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R6", "item": "Sub-processors", "value": "Public list (last updated September 11, 2026) with activity and country; subscribers get 10 business days' notice of new sub-processors and may object within 30 days. Includes AWS (US, Germany, Ireland, Australia, Japan), Google Cloud, Fireworks AI, Amplitude, Anthropic, OpenAI, Segment (Twilio), Salesforce, and Asana affiliates.", "source_urls": ["https://asana.com/terms/subprocessors", "https://asana.com/terms/data-processing"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R7", "item": "Data residency", "value": "Paid add-on on Enterprise, included in Enterprise+; not on Starter or Advanced. Regions: US (Virginia, default), Germany (Frankfurt), Japan (Tokyo), Australia (Sydney). Covers data at rest only; Asana still processes data in the US and elsewhere.", "source_urls": ["https://help.asana.com/s/article/data-residency-for-asana?language=en_US"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R8", "item": "SSO / MFA", "value": "Enforced two-factor authentication on every plan. Google SSO and Microsoft SSO from Starter up. SAML SSO and SCIM only on Enterprise and Enterprise+.", "source_urls": ["https://asana.com/pricing"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R9", "item": "DPA / breach notice", "value": "Public DPA with Asana, Inc. (effective September 1, 2026); includes EU SCCs, a UK addendum and Swiss clauses. Asana notifies the customer of a security incident without undue delay or within the time required by law; no fixed number of hours.", "source_urls": ["https://asana.com/terms/data-processing"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R10a", "item": "Public pricing", "value": "Per user per month: Starter $13.49 billed monthly ($10.99 annual), Advanced $30.49 billed monthly ($24.99 annual). Personal is free for up to 2 users. Enterprise and Enterprise+ say \"Contact sales\". Above 5 users, seats are sold in steps of 5 up to 30 users. No refunds.", "source_urls": ["https://asana.com/pricing"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R10b", "item": "Estimated 90-day pilot cost", "value": "12 seats x $13.49 x 3 months on Starter monthly billing: about $486. Seats come in steps of 5, so Asana would bill 15 seats: about $607. Starter covers Google SSO and 2FA; SAML SSO needs Enterprise (see R8). Excludes AI add-ons.", "source_urls": ["https://asana.com/pricing"], "checked_date": "2026-10-09", "status": "found", "label": "ASSUMPTION"},
+        {"id": "R11", "item": "AI use of customer data (optional)", "value": "Asana does not use customer data for training and contractually bars its AI partners (OpenAI, Anthropic, AWS Bedrock, Google Gemini, Fireworks.ai) from training on it; partners delete data after each query. Admins can turn AI features off in the admin console.", "source_urls": ["https://help.asana.com/s/article/asana-ai-faq?language=en_US", "https://asana.com/product/ai"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"}
+      ],
+      "check": {"complete": true, "rows": 12, "not_found": 0, "must_haves_filled": ["R1", "R3", "R4", "R10"], "every_row_has_url": true, "r3_shows_personal_data": false, "matches_intake_customer_data": true},
+      "summary_for_approvers": "Asana, Inc. is a well-known work management tool for projects, tasks and timelines. For this pilot it would hold only 12 Acme staff accounts and internal tasks and timelines, so no Acme customer data and no Security review. Its security posture is solid: SOC 2 Type 2 (report on request), several ISO certifications, a public sub-processor list, a public DPA, and no AI training on customer data, though SAML SSO and data residency need Enterprise. Estimated cost for 12 seats for 90 days on Starter monthly billing is about $486, or about $607 if Asana bills the next seat step of 15."
     },
     "routing": {
       "gate_checks": {"intake_complete": true, "pack_complete": true, "business_owner_is_named_person": true},
@@ -69,7 +81,7 @@
       ],
       "nudges": [],
       "days_open": 0.9,
-      "exceptions": {"missing_intake_fields": 1, "not_found_pack_rows": null, "rejections": 0, "total": null}
+      "exceptions": {"missing_intake_fields": 1, "not_found_pack_rows": 0, "rejections": 0, "total": 1}
     }
   }
 }

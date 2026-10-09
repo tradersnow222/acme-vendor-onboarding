@@ -32,13 +32,17 @@ class RunTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_trace_for_each_sample(self):
-        zendesk_pack = load_sample("zendesk")["expected"]["pack"]
+        pack_lines = {}
+        for name in list_samples():
+            pack = load_sample(name)["expected"]["pack"]
+            pack_lines[name] = (
+                f"5. [script] Pack check: PASS ({len(pack['rows'])} rows, {pack['check']['not_found']} not_found)"
+            )
         want = {
             "zendesk": (
                 "2. [script] Follow-up questions: round 1 asked target_start_date, touches_customer_data, "
                 "business_owner; complete after 1 round(s)",
-                f"5. [script] Pack check: PASS ({len(zendesk_pack['rows'])} rows, "
-                f"{zendesk_pack['check']['not_found']} not_found)",
+                pack_lines["zendesk"],
                 "6. [script] Routing: VR-0001: route = manager, security",
                 "7. [person] Approvals: manager Daniel Okafor [SYNTHESIZED] approved; "
                 "security Lena Hoffmann [SYNTHESIZED] approved_with_conditions",
@@ -46,14 +50,14 @@ class RunTest(unittest.TestCase):
             ),
             "figma": (
                 "2. [script] Follow-up questions: none needed",
-                "5. [script] Pack check: not built yet",
+                pack_lines["figma"],
                 "6. [script] Routing: VR-0002: route = manager",
                 "7. [person] Approvals: manager Aisha Karim [SYNTHESIZED] approved",
                 "exceptions 0, steps 5 script, 1 model, 2 person",
             ),
             "asana": (
                 "2. [script] Follow-up questions: round 1 asked business_owner; complete after 1 round(s)",
-                "5. [script] Pack check: not built yet",
+                pack_lines["asana"],
                 "6. [script] Routing: VR-0003: route = manager",
                 "7. [person] Approvals: manager Rachel Adeyemi [SYNTHESIZED] approved",
                 "exceptions 1, steps 5 script, 1 model, 2 person",
