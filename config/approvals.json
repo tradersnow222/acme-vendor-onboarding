@@ -1,1 +1,7 @@
-{"stale_after_hours": 20}
+{
+  "stale_after_hours": 20,
+  "approvers": {
+    "manager": "Daniel Okafor [SYNTHESIZED], Director of Customer Support",
+    "security": "Lena Hoffmann [SYNTHESIZED], Security & GRC Lead"
+  }
+}
