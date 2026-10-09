@@ -3,7 +3,7 @@
   "case": "clean_no_customer_data",
   "summary": "Clean request. All five fields in the first message, no follow-up. No customer data, so manager only. Ends approved.",
   "data_labels": {
-    "vendor": "PUBLIC (real company; research pack is produced later by the research step)",
+    "vendor": "PUBLIC (real company; pack facts fetched from public pages on 2026-10-09 by a Cursor cloud agent; pilot cost is an ASSUMPTION)",
     "people_messages_times_replies": "SYNTHESIZED",
     "acme": "fictional"
   },
@@ -37,10 +37,22 @@
       "context": {"pilot_length_days": 90, "seats_requested": 5, "use_case": "Internal product UI mockups with placeholder data [SYNTHESIZED]"}
     },
     "pack": {
-      "rows": null,
-      "produced_by": "research step",
-      "must_pass": "every row has a source URL or not_found; R1, R3, R4, R10 have values",
-      "r3_should_show_acme_customer_data": false
+      "rows": [
+        {"id": "R1", "item": "Legal entity", "value": "Figma, Inc. Legal notices go to 760 Market St, Floor 10, San Francisco, CA 94102.", "source_urls": ["https://www.figma.com/legal/tos/"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R2", "item": "What it does", "value": "Collaborative design platform: Figma Design for UI design and prototyping, Dev Mode for handoff, FigJam whiteboards, Slides, Make, and more. Sold per seat per month (Full, Dev and Collab seats).", "source_urls": ["https://www.figma.com/pricing/"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R3", "item": "Data it would touch", "value": "\"Customer Content\" = materials developed on or uploaded to Figma by the customer or its Authorized Users. Account information = name, email address, picture. For this pilot: 5 Acme designer accounts (names and work emails) and internal mockups with placeholder data. No Acme customer records.", "source_urls": ["https://www.figma.com/legal/dpa/", "https://www.figma.com/legal/privacy/"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R4", "item": "Certifications / trust page", "value": "Security page lists SOC 2 Type 2, SOC 3, ISO 27001:2022, 27017, 27018, 27701, ISO 42001 (AI), EU Cloud Code of Conduct, C5, TISAX, CSA CAIQ and FedRAMP Authorized, plus a bug bounty. The DPA commits to encryption at rest and in transit (TLS/SSL and AES-256 or equivalent).", "source_urls": ["https://www.figma.com/security/", "https://www.figma.com/legal/dpa/"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R5", "item": "Audit report access", "value": "The SOC 2 Type 2 report is not public. The security page points to Figma's Trust Center for compliance documents, and the DPA says Figma shares summaries of its certifications and audit reports on written request, subject to confidentiality controls. A person must request it.", "source_urls": ["https://www.figma.com/security/", "https://www.figma.com/legal/dpa/"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R6", "item": "Sub-processors", "value": "Public list with activity, location and data categories; customers can subscribe to changes, and new sub-processors are listed at least 15 days before they start. Includes AWS (US, or the selected region on Enterprise), Cloudflare, Datadog, Sentry, Snowflake, Twilio, AI model providers (Anthropic, OpenAI, Google Vertex, Azure and others), support vendors, and Figma group companies.", "source_urls": ["https://www.figma.com/sub-processors/", "https://www.figma.com/legal/dpa/"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R7", "item": "Data residency", "value": "Only on the Enterprise plan: file content can be hosted on AWS in the US, EU, Australia, India, Brazil, Japan or Canada. Billing data, metadata, logs and user profiles are not covered, and new edits may sit in the US for up to 30 days. Other plans are hosted in the US.", "source_urls": ["https://help.figma.com/hc/en-us/articles/15643274574871-Enable-localized-file-hosting", "https://www.figma.com/sub-processors/"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R8", "item": "SSO / MFA", "value": "SAML SSO (Okta, Entra ID, OneLogin, Google Workspace, AD FS or custom SAML 2.0) and SCIM are only on Organization and Enterprise. 2FA works on any plan but is set per account; enforcing it for everyone needs Governance+ on Enterprise.", "source_urls": ["https://help.figma.com/hc/en-us/articles/360040532333-Guide-to-SAML-SSO", "https://help.figma.com/hc/en-us/articles/360039817634-Enable-two-factor-authentication-2FA", "https://www.figma.com/pricing/"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R9", "item": "DPA / breach notice", "value": "Public DPA with Figma, Inc. (last updated March 30, 2026); includes EU SCCs and a UK addendum. Figma must notify the customer of a security incident without undue delay and, where feasible, within 72 hours. Customer content is deleted or returned within 30 days after the service ends.", "source_urls": ["https://www.figma.com/legal/dpa/"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R10a", "item": "Public pricing", "value": "Per seat per month: Professional on monthly billing $20 Full, $15 Dev, $5 Collab ($16 / $12 / $3 on annual billing). Organization $55 / $25 / $5 and Enterprise $90 / $35 / $5 are billed annually only; Enterprise also says \"Contact sales\". Starter is free.", "source_urls": ["https://www.figma.com/pricing/"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"},
+        {"id": "R10b", "item": "Estimated 90-day pilot cost", "value": "5 Full seats x $20 x 3 months on Professional monthly billing: about $300. Professional is the only plan billed monthly; Organization and Enterprise need an annual commitment. Excludes extra AI credits and add-ons. Professional has no SAML SSO (see R8).", "source_urls": ["https://www.figma.com/pricing/"], "checked_date": "2026-10-09", "status": "found", "label": "ASSUMPTION"},
+        {"id": "R11", "item": "AI use of customer data (optional)", "value": "Third-party model providers may not train on customer data. Figma itself trains its own models on customer content when the admin content-training setting is on: on by default for Starter and Professional (admins can opt out), off by default for Organization and Enterprise.", "source_urls": ["https://www.figma.com/ai/our-approach/"], "checked_date": "2026-10-09", "status": "found", "label": "PUBLIC"}
+      ],
+      "check": {"complete": true, "rows": 12, "not_found": 0, "must_haves_filled": ["R1", "R3", "R4", "R10"], "every_row_has_url": true, "r3_shows_personal_data": false, "matches_intake_customer_data": true},
+      "summary_for_approvers": "Figma, Inc. is a widely used design and prototyping platform. For this pilot it would hold only 5 Acme designers' accounts and internal mockups with placeholder data, so no Acme customer data and no Security review. Its security posture is strong: SOC 2 Type 2 (report on request), several ISO certifications, a public sub-processor list and a public DPA with 72-hour breach notice, but SAML SSO needs a higher plan and Figma trains its own AI on Professional content unless an admin turns that off. Estimated cost for 5 Full seats for 90 days on Professional monthly billing is about $300."
     },
     "routing": {
       "gate_checks": {"intake_complete": true, "pack_complete": true, "business_owner_is_named_person": true},
@@ -56,7 +68,7 @@
       ],
       "nudges": [],
       "days_open": 0.2,
-      "exceptions": {"missing_intake_fields": 0, "not_found_pack_rows": null, "rejections": 0, "total": null}
+      "exceptions": {"missing_intake_fields": 0, "not_found_pack_rows": 0, "rejections": 0, "total": 0}
     }
   }
 }
