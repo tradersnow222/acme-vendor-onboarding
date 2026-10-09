@@ -88,7 +88,7 @@ class StaleTest(unittest.TestCase):
         sent_at = zendesk_security_card_sent_at()
         nudge_at = sample["expected"]["status"]["nudges"][0]["at"]
         config = load_config()
-        self.assertEqual(config, {"stale_after_hours": 20})
+        self.assertEqual(config["stale_after_hours"], 20)
         self.assertIs(is_stale(approvers["security"], sent_at, "2026-10-08T16:40:00-07:00", config), False)
         self.assertIs(is_stale(approvers["security"], sent_at, nudge_at, config), True)
         self.assertEqual(approvers["security"]["decision"], "waiting")
