@@ -25,8 +25,10 @@ If either fails, stop and fix the setup before driving anything.
 ## Drive
 1. `make test` passes.
 2. For each sample, run `python3 -m scripts.run <sample>` (the same as `make run SAMPLE=<sample>`).
+3. Check that the approval commands start. This prints nothing when all pass:
+   `for m in request_approvals record_approval ticket stale_check digest; do python3 -m scripts.$m --help >/dev/null || echo "FAIL $m"; done`
 
-The trace comes from `scripts/run.py`. Each run exits 0 and prints 8 numbered steps.
+The step 2 trace comes from `scripts/run.py`. Each run exits 0 and prints 8 numbered steps.
 
 ## Evidence
 Save each run under `runs/verify/` (git-ignored):

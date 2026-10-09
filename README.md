@@ -133,6 +133,26 @@ python3 -m scripts.status --ticket VR-0001
 3. `scripts.fetch_pack` pulls the pack out of the research agent's final reply into `packs/VR-0001/`. It writes the pack back to the ticket only if the pack check passes.
 4. `scripts.status` prints the status from the ticket and `runs/VR-0001/audit.csv`.
 
+### 5. Approvals, close-out, nudges and digest
+
+These commands also use `tickets/` and `runs/`.
+
+```bash
+python3 -m scripts.request_approvals --ticket VR-0001
+python3 -m scripts.record_approval --ticket VR-0001 --role manager --name "<approver name>" --decision approved --quote "<their exact words>"
+python3 -m scripts.ticket --close VR-0001
+python3 -m scripts.stale_check [--record]
+python3 -m scripts.digest
+```
+
+1. `scripts.request_approvals` routes the ticket and records when each approval request went out.
+2. `scripts.record_approval` only records a decision that a named person already gave in their own words. The bot never picks the name or the decision. `--decision` is `approved`, `approved_with_conditions` or `rejected`. Repeat `--condition` for each condition.
+3. `scripts.ticket --close` records the final decision once every approver has decided.
+4. `scripts.stale_check` lists waiting approvals that are due a nudge. Silence is never a yes. `--record` writes each nudge to the ticket and the audit log.
+5. `scripts.digest` prints the daily Ops digest of every open request.
+
+Add `--help` to any command to see all its options and examples.
+
 ### Dry run vs live
 
 Dry run is the default everywhere. `--live` is the only way to spend money. The key comes only from the `CURSOR_API_KEY` environment variable, never from a file or a flag.

@@ -12,6 +12,14 @@ help:
 	@echo "  make audit TICKET=<id>    - Print runs/<id>/audit.csv"
 	@echo "  make clean      - Remove generated files"
 	@echo "  make run SAMPLE=<zendesk|figma|asana> - Trace one sample through every step"
+	@echo ""
+	@echo "Approval commands (no make target; add --help for options):"
+	@echo "  python3 -m scripts.request_approvals --ticket <id> - Ask each approver on the route"
+	@echo "  python3 -m scripts.record_approval --ticket <id> --role <role> --name <name> --decision <decision> --quote <words>"
+	@echo "      - Record a decision a named person already gave in their own words"
+	@echo "  python3 -m scripts.ticket --close <id> - Close out a decided request"
+	@echo "  python3 -m scripts.stale_check [--record] - List approvals due a nudge"
+	@echo "  python3 -m scripts.digest - Print the daily Ops digest"
 
 setup:
 	@echo "Setup: Creating necessary directories..."
