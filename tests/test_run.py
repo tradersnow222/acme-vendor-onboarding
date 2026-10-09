@@ -1,5 +1,6 @@
 import csv
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -11,6 +12,7 @@ from scripts.samples import list_samples, load_sample
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TICKETS_DIR = REPO_ROOT / "tickets"
 RUNS_DIR = REPO_ROOT / "runs"
+MAKEFILE = REPO_ROOT / "Makefile"
 
 
 def run_sample(*args, tmpdir):
@@ -104,6 +106,20 @@ class RunTest(unittest.TestCase):
         self.assertEqual(
             result.stderr, "usage: make run SAMPLE=<zendesk|figma|asana>   e.g. make run SAMPLE=zendesk\n"
         )
+
+
+class MakefileTest(unittest.TestCase):
+    def test_targets_call_real_scripts(self):
+        makefile = MAKEFILE.read_text()
+        self.assertNotIn("not built yet", makefile)
+        want = {"validate": "intake_check", "route": "route", "research": "launch_research", "status": "status"}
+        for target, module in want.items():
+            with self.subTest(target=target):
+                recipe = re.search(rf"^{target}:\n((?:\t.*\n)+)", makefile, re.M).group(1)
+                self.assertIn(f"python3 -m scripts.{module} ", recipe)
+                self.assertTrue((REPO_ROOT / "scripts" / f"{module}.py").is_file())
+        audit = re.search(r"^audit:\n((?:\t.*\n)+)", makefile, re.M).group(1)
+        self.assertIn("runs/$(TICKET)/audit.csv", audit)
 
 
 if __name__ == "__main__":

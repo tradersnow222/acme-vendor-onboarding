@@ -5,11 +5,11 @@ help:
 	@echo ""
 	@echo "  make help       - Show this help message"
 	@echo "  make setup      - Set up project (placeholder)"
-	@echo "  make validate   - Run intake field validation"
-	@echo "  make research   - Generate research pack"
-	@echo "  make route      - Run approval routing"
-	@echo "  make status     - Generate status report"
-	@echo "  make audit      - Show audit log"
+	@echo "  make validate SAMPLE=<zendesk|figma|asana> - Check the five intake fields"
+	@echo "  make research TICKET=<id> - Dry run of the research agent launch"
+	@echo "  make route SAMPLE=<zendesk|figma|asana>    - Show who must approve"
+	@echo "  make status TICKET=<id>   - Show request status"
+	@echo "  make audit TICKET=<id>    - Print runs/<id>/audit.csv"
 	@echo "  make clean      - Remove generated files"
 	@echo "  make run SAMPLE=<zendesk|figma|asana> - Trace one sample through every step"
 
@@ -19,19 +19,24 @@ setup:
 	@echo "✓ Project structure ready"
 
 validate:
-	@echo "⚠ Intake validation script not built yet"
+	@test -n "$(SAMPLE)" || { echo "usage: make validate SAMPLE=<zendesk|figma|asana>   e.g. make validate SAMPLE=zendesk" >&2; exit 2; }
+	@python3 -m scripts.intake_check $(SAMPLE)
 
 research:
-	@echo "⚠ Research pack generation not built yet"
+	@test -n "$(TICKET)" || { echo "usage: make research TICKET=<id>   e.g. make research TICKET=VR-0001" >&2; exit 2; }
+	@python3 -m scripts.launch_research --ticket $(TICKET)
 
 route:
-	@echo "⚠ Approval routing not built yet"
+	@test -n "$(SAMPLE)" || { echo "usage: make route SAMPLE=<zendesk|figma|asana>   e.g. make route SAMPLE=zendesk" >&2; exit 2; }
+	@python3 -m scripts.route $(SAMPLE)
 
 status:
-	@echo "⚠ Status report generation not built yet"
+	@test -n "$(TICKET)" || { echo "usage: make status TICKET=<id>   e.g. make status TICKET=VR-0001" >&2; exit 2; }
+	@python3 -m scripts.status --ticket $(TICKET)
 
 audit:
-	@echo "⚠ Audit log viewing not built yet"
+	@test -n "$(TICKET)" || { echo "usage: make audit TICKET=<id>   e.g. make audit TICKET=VR-0001" >&2; exit 2; }
+	@cat runs/$(TICKET)/audit.csv
 
 clean:
 	@echo "Cleaning generated files..."
