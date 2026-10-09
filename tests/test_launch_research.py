@@ -1,5 +1,6 @@
 import contextlib
 import io
+import json
 import os
 import subprocess
 import sys
@@ -10,6 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from scripts import launch_research
+from scripts.fetch_pack import extract_pack
 from scripts.samples import load_sample
 from scripts.ticket import create_ticket, read_ticket, ticket_path
 
@@ -31,8 +33,9 @@ EXPECTED_BODY = {
         "The vendor is Zendesk, Inc. (https://www.zendesk.com). "
         "Write only under packs/VR-0001/. Use public pages only. "
         "Do not edit any other file. Do not open a pull request. "
-        "End your final reply with the full contents of packs/VR-0001/pack.json "
-        "and packs/VR-0001/fetch_log.csv."
+        "End your final reply with packs/VR-0001/pack.json in one ```json fenced block "
+        "and packs/VR-0001/fetch_log.csv in one ```csv fenced block whose first line is url,http_status,fetched_at. "
+        "Put each fence on its own line and nothing else inside the blocks."
     )},
     "repos": [{"url": "https://github.com/tradersnow222/acme-vendor-onboarding", "startingRef": "main"}],
     "autoCreatePR": False,
@@ -113,6 +116,18 @@ class LaunchResearchTest(unittest.TestCase):
             self.assertEqual(out, "VR-0001: research agent already started: "
                                   "bc-fake-0001 https://cursor.com/agents/bc-fake-0001\n")
             self.assertEqual(stub.call_count, 1)
+
+    def test_prompt_reply_format_matches_fetch_pack(self):
+        prompt = launch_research.build_prompt(read_ticket("VR-0001", self.dir))
+        for text in ["```json", "```csv", "url,http_status,fetched_at"]:
+            self.assertIn(text, prompt)
+
+        pack = {"request_id": "VR-0001", "rows": load_sample("zendesk")["expected"]["pack"]["rows"]}
+        fetch_log = "url,http_status,fetched_at\nhttps://www.zendesk.com/trust-center/,200,2026-10-08T09:00:00-07:00\n"
+        reply = ("The research pack for VR-0001 is done.\n\n"
+                 f"```json\n{json.dumps(pack, indent=2)}\n```\n\n"
+                 f"```csv\n{fetch_log}```\n")
+        self.assertEqual(extract_pack(reply), (pack, fetch_log))
 
     def test_help_shows_live_and_examples(self):
         result = self.run_cli("--help")
