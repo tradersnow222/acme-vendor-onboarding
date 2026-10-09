@@ -5,8 +5,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from scripts.approvals import record_decision
 from scripts.samples import list_samples, load_sample
-from scripts.ticket import create_ticket, read_ticket
+from scripts.status import audit_path, read_audit
+from scripts.ticket import create_ticket, read_ticket, ticket_path
+from scripts.write_back import write_ticket
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIELD_NAMES = ["vendor_legal_name", "website", "touches_customer_data", "business_owner", "target_start_date"]
@@ -59,3 +62,87 @@ class TicketTest(unittest.TestCase):
         )
         self.assertEqual(json.loads(result.stdout)["request_id"], "VR-0002")
         self.assertEqual(read_ticket("VR-0002", self.dir)["intake"]["vendor_legal_name"]["value"], "Figma, Inc.")
+
+
+class CloseTicketTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.tickets_dir = Path(self.tmp.name) / "tickets"
+        self.runs_dir = Path(self.tmp.name) / "runs"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def make_ticket(self, name, reply_count=None, security=False):
+        sample = load_sample(name)
+        ticket = create_ticket(sample["request_id"], sample["expected"]["intake"]["fields"], self.tickets_dir)
+        if security:
+            ticket["approvers"]["security"] = {"name": None, "decision": "waiting", "at": None, "conditions": []}
+        for r in sample["approver_replies"][:reply_count]:
+            ticket["approvers"] = record_decision(
+                ticket["approvers"], r["role"], r["approver"], r["decision"], r["time"], r["conditions"]
+            )
+        write_ticket(ticket, sample["request_id"], self.tickets_dir)
+        return sample
+
+    def close(self, *args):
+        return subprocess.run(
+            [sys.executable, "-m", "scripts.ticket", *args,
+             "--dir", str(self.tickets_dir), "--runs-dir", str(self.runs_dir)],
+            cwd=REPO_ROOT, capture_output=True, text=True,
+        )
+
+    def test_refuses_while_security_is_waiting(self):
+        sample = self.make_ticket("zendesk", 1, security=True)
+        before = ticket_path("VR-0001", self.tickets_dir).read_bytes()
+        result = self.close("--close", "VR-0001", "--at", sample["expected"]["status"]["decided_at"])
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "VR-0001: cannot close, still waiting on security\n")
+        self.assertEqual(ticket_path("VR-0001", self.tickets_dir).read_bytes(), before)
+        self.assertFalse(audit_path("VR-0001", self.runs_dir).exists())
+
+    def test_closes_zendesk_with_conditions_once(self):
+        sample = self.make_ticket("zendesk", security=True)
+        status = sample["expected"]["status"]
+        conditions = sample["approver_replies"][1]["conditions"]
+        result = self.close("--close", "VR-0001", "--at", "2026-10-09T11:25:00-07:00")
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "VR-0001: closed approved_with_conditions at 2026-10-09T11:25:00-07:00\n"
+                                        f"conditions: {'; '.join(conditions)}\n")
+        ticket = read_ticket("VR-0001", self.tickets_dir)
+        self.assertEqual(ticket["closed_at"], "2026-10-09T11:25:00-07:00")
+        self.assertEqual(ticket["final_decision"], status["decision"])
+        rows = read_audit("VR-0001", self.runs_dir)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            {k: rows[-1][k] for k in ("step", "actor_type", "actor", "timestamp_pt", "outcome", "est_cost", "data_label")},
+            {"step": "Close-out", "actor_type": "script", "actor": "scripts.ticket",
+             "timestamp_pt": "2026-10-09T11:25:00-07:00",
+             "outcome": f"approved_with_conditions; conditions: {'; '.join(conditions)}",
+             "est_cost": "~0", "data_label": "SYNTHESIZED"},
+        )
+
+        ticket_before = ticket_path("VR-0001", self.tickets_dir).read_bytes()
+        audit_before = audit_path("VR-0001", self.runs_dir).read_bytes()
+        again = self.close("--close", "VR-0001", "--at", "2026-10-10T09:00:00-07:00")
+        self.assertEqual(again.returncode, 0)
+        self.assertEqual(again.stdout,
+                         "VR-0001: already closed approved_with_conditions at 2026-10-09T11:25:00-07:00\n")
+        self.assertEqual(ticket_path("VR-0001", self.tickets_dir).read_bytes(), ticket_before)
+        self.assertEqual(audit_path("VR-0001", self.runs_dir).read_bytes(), audit_before)
+
+    def test_closes_figma_as_approved_without_conditions(self):
+        sample = self.make_ticket("figma")
+        decided_at = sample["expected"]["status"]["decided_at"]
+        result = self.close("--close", "VR-0002", "--at", decided_at)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, f"VR-0002: closed approved at {decided_at}\n")
+        self.assertEqual(read_ticket("VR-0002", self.tickets_dir)["final_decision"], sample["expected"]["status"]["decision"])
+
+    def test_sample_and_close_together_is_a_usage_error(self):
+        result = self.close("figma", "--close", "VR-0002")
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(result.stderr, "give either a sample or --close REQUEST_ID, not both\n"
+                                        "example: python3 -m scripts.ticket --close VR-0001\n")
+        self.assertFalse(self.tickets_dir.exists())
