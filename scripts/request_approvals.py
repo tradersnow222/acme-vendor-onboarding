@@ -2,6 +2,7 @@ import argparse
 import sys
 from datetime import date, datetime
 
+from scripts.approvals import CONFIG_PATH, load_config
 from scripts.intake_check import check_intake
 from scripts.route import route_request
 from scripts.status import RUNS_DIR, append_audit_row
@@ -21,7 +22,11 @@ def usage_error(message):
     return 2
 
 
-def request_approvals(ticket, at, today):
+def describe(role, name):
+    return f"{role} ({name.split(',')[0]})" if name else f"{role} (no approver named in config)"
+
+
+def request_approvals(ticket, at, today, names):
     intake_passed = check_intake(ticket["intake"], today)["complete"]
     pack_passed = ticket["research"].get("status") == "done"
     result = route_request(ticket["intake"], None, intake_passed, pack_passed)
@@ -34,6 +39,7 @@ def request_approvals(ticket, at, today):
             role, {"name": None, "decision": "waiting", "at": None, "conditions": []})
         if entry["decision"] == "waiting" and not entry.get("requested_at"):
             entry["requested_at"] = at
+            entry["name"] = entry.get("name") or names.get(role)
             requested.append(role)
     return result, requested
 
@@ -51,6 +57,7 @@ def main(argv):
                         help="when the requests went out, ISO 8601 with a UTC offset (default: now)")
     parser.add_argument("--today", type=date.fromisoformat,
                         help="date for the intake check, YYYY-MM-DD (default: the date part of --at)")
+    parser.add_argument("--config", default=CONFIG_PATH, help="approvals config with the named approver per role")
     args = parser.parse_args(argv)
 
     if not args.ticket:
@@ -65,7 +72,8 @@ def main(argv):
         return usage_error(f"--at needs ISO 8601 with a UTC offset: {args.at!r}")
 
     ticket = read_ticket(args.ticket, args.tickets_dir)
-    result, requested = request_approvals(ticket, args.at, args.today or at_time.date())
+    names = load_config(args.config).get("approvers", {})
+    result, requested = request_approvals(ticket, args.at, args.today or at_time.date(), names)
     if result["blocked"]:
         print(f"{args.ticket}: blocked: {'; '.join(result['blocked_reasons'])}")
         return 1
@@ -85,7 +93,8 @@ def main(argv):
             "est_cost": "~0",
             "data_label": "SYNTHESIZED",
         }, args.runs_dir)
-    print(f"{args.ticket}: approval requested from {', '.join(requested)} at {args.at}")
+    asked = ", ".join(describe(role, ticket["approvers"][role]["name"]) for role in requested)
+    print(f"{args.ticket}: approval requested from {asked} at {args.at}")
     return 0
 
 
