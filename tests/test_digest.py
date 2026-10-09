@@ -33,6 +33,7 @@ class DigestTest(unittest.TestCase):
         sample = load_sample(name)
         request_id = sample["request_id"]
         ticket = create_ticket(request_id, sample["expected"]["intake"]["fields"], self.tickets_dir)
+        ticket["created_at"] = sample["messages"][0]["time"]
         if security:
             ticket["approvers"]["security"] = {"name": None, "decision": "waiting", "at": None, "conditions": []}
         append_audit_row(request_id, person_row("Request received", sample["people"]["requester"]["name"],

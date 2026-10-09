@@ -6,7 +6,7 @@ alwaysApply: false
 # Status and audit definitions
 
 ## Days open
-From the first requester message to the final decision (the last required named approval, or the rejection). While still open, up to now. Shown in days with one decimal.
+From the ticket's `created_at` to its `closed_at`. While still open, up to now. If `created_at` is missing, start at the first audit row. Approver decision times do not stop the clock. Shown in days with one decimal.
 
 ## Exception count
 Exceptions = missing intake fields + `not_found` pack rows + rejections.

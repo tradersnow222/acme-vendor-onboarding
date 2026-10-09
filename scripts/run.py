@@ -50,6 +50,7 @@ def run(name):
 
     tickets_dir = tempfile.mkdtemp(prefix="acme-tickets-")
     ticket = create_ticket(request_id, fields, tickets_dir)
+    ticket["created_at"] = sample["messages"][0]["time"]
     ticket["counts"]["exceptions"]["missing_intake_fields"] = len(first["ask_for"])
     step(3, "script", "Ticket", f"wrote {ticket_path(request_id, tickets_dir)}", steps)
 
@@ -75,6 +76,7 @@ def run(name):
         ticket["approvers"] = record_decision(
             ticket["approvers"], reply["role"], reply["approver"], reply["decision"], reply["time"], reply["conditions"]
         )
+    ticket["closed_at"] = sample["expected"]["status"]["decided_at"]
     write_ticket(ticket, request_id, tickets_dir)
     step(7, "person", "Approvals",
          "; ".join(f"{role} {a['name']} {a['decision']}" for role, a in ticket["approvers"].items()), steps)

@@ -20,6 +20,7 @@ class RecordApprovalTest(unittest.TestCase):
         self.runs_dir = Path(self.tmp.name) / "runs"
         self.sample = load_sample("zendesk")
         ticket = create_ticket("VR-0001", self.sample["expected"]["intake"]["fields"], self.tickets_dir)
+        ticket["created_at"] = self.sample["messages"][0]["time"]
         ticket["approvers"]["security"] = {"name": None, "decision": "waiting", "at": None, "conditions": [],
                                            "requested_at": REQUESTED_AT}
         write_ticket(ticket, "VR-0001", self.tickets_dir)
@@ -55,8 +56,8 @@ class RecordApprovalTest(unittest.TestCase):
 
         ticket = read_ticket("VR-0001", self.tickets_dir)
         rows = read_audit("VR-0001", self.runs_dir)
-        status = build_status(ticket, rows, "2026-10-10T00:00:00-07:00")
         expected = self.sample["expected"]["status"]
+        status = build_status({**ticket, "closed_at": expected["decided_at"]}, rows, "2026-10-10T00:00:00-07:00")
         self.assertEqual(status["decision"], expected["decision"])
         self.assertEqual(status["decision"], "approved_with_conditions")
         self.assertEqual(status["days_open"], expected["days_open"])

@@ -18,12 +18,20 @@ ZENDESK_COUNTS = {
     "hedged_answers": 1,
     "nudges": 1,
 }
+LIVE_CREATED_AT = "2026-10-08T21:13:00-07:00"
+LIVE_DECIDED_AT = "2026-10-09T11:24:00-07:00"
 
 
 def person_row(step, actor, timestamp):
     return {"step": step, "actor_type": "person", "actor": actor, "timestamp_pt": timestamp,
             "what_they_saw": "request", "outcome": "done", "est_cost": "~5 min",
             "could_be_done_by": "person", "data_label": "SYNTHESIZED"}
+
+
+LIVE_AUDIT_ROWS = [
+    person_row("Approval requested", "Daniel Okafor [SYNTHESIZED]", "2026-10-09T09:00:00-07:00"),
+    person_row("Manager decision", "Daniel Okafor [SYNTHESIZED]", LIVE_DECIDED_AT),
+]
 
 
 class StatusTest(unittest.TestCase):
@@ -35,8 +43,11 @@ class StatusTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def make_ticket(self, sample, replies, security=False, counts=None):
+    def make_ticket(self, sample, replies, security=False, counts=None, closed=False):
         ticket = create_ticket(sample["request_id"], sample["expected"]["intake"]["fields"], self.tickets_dir)
+        ticket["created_at"] = sample["messages"][0]["time"]
+        if closed:
+            ticket["closed_at"] = sample["expected"]["status"]["decided_at"]
         if security:
             ticket["approvers"]["security"] = {"name": None, "decision": "waiting", "at": None, "conditions": []}
         for r in replies:
@@ -48,7 +59,8 @@ class StatusTest(unittest.TestCase):
 
     def make_zendesk(self, reply_count=None):
         sample = load_sample("zendesk")
-        self.make_ticket(sample, sample["approver_replies"][:reply_count], security=True, counts=ZENDESK_COUNTS)
+        self.make_ticket(sample, sample["approver_replies"][:reply_count], security=True, counts=ZENDESK_COUNTS,
+                         closed=reply_count is None)
         audit_path("VR-0001", self.runs_dir).parent.mkdir(parents=True)
         shutil.copy(SAMPLES_DIR / "vr-0001-zendesk-audit.csv", audit_path("VR-0001", self.runs_dir))
         return sample["expected"]["status"]
@@ -77,7 +89,7 @@ class StatusTest(unittest.TestCase):
                                  self.runs_dir)
                 append_audit_row(request_id, person_row("Manager decision", reply["approver"], reply["time"]),
                                  self.runs_dir)
-                self.make_ticket(sample, sample["approver_replies"])
+                self.make_ticket(sample, sample["approver_replies"], closed=True)
                 status = self.status_of(request_id)
                 self.assertEqual(status["decision"], sample["expected"]["status"]["decision"])
                 self.assertEqual(status["decision"], "approved")
@@ -90,6 +102,26 @@ class StatusTest(unittest.TestCase):
         self.assertEqual(status["decision"], "waiting")
         self.assertEqual(status["approvers"]["security"]["decision"], "waiting")
         self.assertEqual(status["days_open"], 1.0)
+
+    def live_ticket(self, **times):
+        ticket = create_ticket("VR-0001", load_sample("zendesk")["expected"]["intake"]["fields"], self.tickets_dir)
+        ticket["approvers"] = record_decision(ticket["approvers"], "manager", "Daniel Okafor [SYNTHESIZED]",
+                                              "approved", LIVE_DECIDED_AT, [])
+        ticket.update(times)
+        return ticket
+
+    def test_live_vr_0001_counts_from_creation_to_close(self):
+        ticket = self.live_ticket(created_at=LIVE_CREATED_AT, closed_at=LIVE_DECIDED_AT)
+        self.assertEqual(build_status(ticket, LIVE_AUDIT_ROWS, NOW)["days_open"], 0.6)
+
+    def test_open_ticket_counts_up_to_now_not_last_decision(self):
+        ticket = self.live_ticket(created_at=LIVE_CREATED_AT)
+        self.assertEqual(build_status(ticket, LIVE_AUDIT_ROWS, "2026-10-10T09:13:00-07:00")["days_open"], 1.5)
+
+    def test_missing_created_at_falls_back_to_first_audit_row(self):
+        ticket = self.live_ticket(closed_at="2026-10-09T21:00:00-07:00")
+        del ticket["created_at"]
+        self.assertEqual(build_status(ticket, LIVE_AUDIT_ROWS, NOW)["days_open"], 0.5)
 
     def test_append_audit_row_only_appends_and_numbers_steps(self):
         row = person_row("Request received", "Marcus Bell [SYNTHESIZED]", "2026-10-09T10:05:00-07:00")
