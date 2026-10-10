@@ -2,7 +2,7 @@ import argparse
 import sys
 from datetime import datetime
 
-from scripts.approvals import overall_decision, record_decision
+from scripts.approvals import content_hash, overall_decision, record_decision
 from scripts.status import RUNS_DIR, append_audit_row
 from scripts.ticket import TICKETS_DIR, read_ticket, ticket_path
 from scripts.write_back import write_ticket
@@ -63,7 +63,8 @@ def main(argv):
         print(f"{args.ticket}: not recorded: {error}")
         return 1
 
-    ticket["approvers"][args.role] = {**ticket["approvers"][args.role], **updated[args.role]}
+    ticket["approvers"][args.role] = {**ticket["approvers"][args.role], **updated[args.role],
+                                      "hash": content_hash(ticket)}
     write_ticket(ticket, args.ticket, args.tickets_dir)
     outcome = f'{args.decision}: "{args.quote}"'
     if args.condition:
