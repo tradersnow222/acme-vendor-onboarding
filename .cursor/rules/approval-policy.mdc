@@ -17,6 +17,7 @@ Route only when all five intake fields are valid (`intake-policy.mdc`) and the p
 - Only an explicit decision from the named approver, recorded with their name, role, decision, timestamp, and any conditions.
 - Does not count: silence, a reply from someone else, an unnamed account, a vague reply ("looks fine?"), or anything written by an agent or the bot.
 - Agents and the bot never approve and never record a decision on someone's behalf.
+- Each approval stores a hash of the intake fields and pack. If either changes later, the approval is cancelled (old approval and reason go to the audit log), the approver is back at `waiting`, and a new card is queued.
 
 ## Decision states
 Per approver: `waiting`, `approved`, `approved_with_conditions`, `rejected`.
