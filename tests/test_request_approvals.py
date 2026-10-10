@@ -121,6 +121,27 @@ class RequestApprovalsTest(unittest.TestCase):
         self.assertEqual(self.ticket_file.read_bytes(), ticket_before)
         self.assertEqual(audit_path("VR-0001", self.runs).read_bytes(), audit_before)
 
+    def test_reset_refills_names_from_config(self):
+        ticket = read_ticket("VR-0001", self.tickets)
+        ticket["approvers"]["manager"] = {"name": "Alice", "decision": "waiting", "at": None, "conditions": []}
+        write_ticket(ticket, "VR-0001", self.tickets)
+        self.request_zendesk()
+        result = self.run_request("--ticket", "VR-0001", "--at", NUDGE_AT, "--today", "2026-10-09",
+                                  "--reset-approvers")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout,
+                         "VR-0001: approval requested from manager (Daniel Okafor [SYNTHESIZED]), "
+                         f"security (Lena Hoffmann [SYNTHESIZED]) at {NUDGE_AT}\n")
+        ticket = read_ticket("VR-0001", self.tickets)
+        for role in ("manager", "security"):
+            self.assertEqual(ticket["approvers"][role]["name"], self.configured_name(role))
+            self.assertEqual(ticket["approvers"][role]["requested_at"], NUDGE_AT)
+        rows = read_audit("VR-0001", self.runs)
+        self.assertEqual([(r["step"], r["outcome"]) for r in rows[2:]],
+                         [("Approvers reset", "manager refilled from config"),
+                          ("Approvers reset", "security refilled from config"),
+                          ("Approval requested", "manager asked"), ("Approval requested", "security asked")])
+
     def test_figma_routes_to_manager_only(self):
         figma = load_sample("figma")
         create_ticket("VR-0002", figma["expected"]["intake"]["fields"], self.tickets)
