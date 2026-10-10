@@ -14,7 +14,9 @@ EPILOG = """examples:
   python3 -m scripts.request_approvals --ticket VR-0001
       route the ticket and record that each approval request went out now
   python3 -m scripts.request_approvals --ticket VR-0001 --at 2026-10-08T09:36:00-07:00 --today 2026-10-08
-      same, with a fixed send time and intake check date"""
+      same, with a fixed send time and intake check date
+  python3 -m scripts.request_approvals --ticket VR-0001 --reset-approvers
+      refill waiting approvers from the config, clear their request times, and ask again"""
 
 
 def usage_error(message):
@@ -24,6 +26,17 @@ def usage_error(message):
 
 def describe(role, name):
     return f"{role} ({name.split(',')[0]})" if name else f"{role} (no approver named in config)"
+
+
+def reset_approvers(ticket, names):
+    reset = []
+    for role, entry in ticket["approvers"].items():
+        if entry["decision"] == "waiting":
+            entry["name"] = names.get(role)
+            entry.pop("requested_at", None)
+            entry.pop("nudged_at", None)
+            reset.append(role)
+    return reset
 
 
 def request_approvals(ticket, at, today, names):
@@ -57,6 +70,8 @@ def main(argv):
                         help="when the requests went out, ISO 8601 with a UTC offset (default: now)")
     parser.add_argument("--today", type=date.fromisoformat,
                         help="date for the intake check, YYYY-MM-DD (default: the date part of --at)")
+    parser.add_argument("--reset-approvers", action="store_true",
+                        help="refill waiting approvers from the config and clear their request times first")
     parser.add_argument("--config", default=CONFIG_PATH, help="approvals config with the named approver per role")
     args = parser.parse_args(argv)
 
@@ -73,6 +88,7 @@ def main(argv):
 
     ticket = read_ticket(args.ticket, args.tickets_dir)
     names = load_config(args.config).get("approvers", {})
+    reset = reset_approvers(ticket, names) if args.reset_approvers else []
     result, requested = request_approvals(ticket, args.at, args.today or at_time.date(), names)
     if result["blocked"]:
         print(f"{args.ticket}: blocked: {'; '.join(result['blocked_reasons'])}")
@@ -83,6 +99,16 @@ def main(argv):
         return 0
 
     write_ticket(ticket, args.ticket, args.tickets_dir)
+    for role in reset:
+        append_audit_row(args.ticket, {
+            "step": "Approvers reset",
+            "actor_type": "script",
+            "actor": "scripts.request_approvals",
+            "timestamp_pt": args.at,
+            "outcome": f"{role} refilled from config",
+            "est_cost": "~0",
+            "data_label": "SYNTHESIZED",
+        }, args.runs_dir)
     for role in requested:
         append_audit_row(args.ticket, {
             "step": "Approval requested",
