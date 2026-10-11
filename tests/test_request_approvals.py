@@ -6,6 +6,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 
+from scripts.approvals import overall_decision
 from scripts.samples import SAMPLES_DIR, load_sample
 from scripts.status import audit_path, read_audit
 from scripts.ticket import create_ticket, read_ticket, ticket_path
@@ -141,6 +142,40 @@ class RequestApprovalsTest(unittest.TestCase):
                          [("Approvers reset", "manager refilled from config"),
                           ("Approvers reset", "security refilled from config"),
                           ("Approval requested", "manager asked"), ("Approval requested", "security asked")])
+
+    def test_edit_after_approval_cancels_it_and_asks_again(self):
+        self.request_zendesk()
+        manager = self.sample["approver_replies"][0]
+        recorded = subprocess.run(
+            [sys.executable, "-m", "scripts.record_approval", "--ticket", "VR-0001", "--role", "manager",
+             "--name", manager["approver"], "--decision", manager["decision"], "--quote", manager["note"],
+             "--at", manager["time"], "--tickets-dir", str(self.tickets), "--runs-dir", str(self.runs)],
+            cwd=REPO_ROOT, capture_output=True, text=True,
+        )
+        self.assertEqual(recorded.returncode, 0, recorded.stderr)
+        unchanged = self.run_request("--ticket", "VR-0001", "--at", NUDGE_AT, "--today", "2026-10-09")
+        self.assertEqual(unchanged.stdout, "VR-0001: approvals already requested: "
+                         "manager 2026-10-08T09:36:00-07:00, security 2026-10-08T09:36:00-07:00\n")
+
+        ticket = read_ticket("VR-0001", self.tickets)
+        ticket["intake"]["target_start_date"]["value"] = "2026-11-09"
+        write_ticket(ticket, "VR-0001", self.tickets)
+        result = self.run_request("--ticket", "VR-0001", "--at", NUDGE_AT, "--today", "2026-10-09")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout,
+                         f"VR-0001: approval requested from manager (Daniel Okafor [SYNTHESIZED]) at {NUDGE_AT}\n")
+        ticket = read_ticket("VR-0001", self.tickets)
+        self.assertEqual(ticket["approvers"]["manager"],
+                         {"name": "Daniel Okafor [SYNTHESIZED]", "decision": "waiting", "at": None,
+                          "conditions": [], "requested_at": NUDGE_AT})
+        self.assertEqual(overall_decision(ticket["approvers"]), "waiting")
+        rows = read_audit("VR-0001", self.runs)
+        self.assertEqual([(r["step"], r["outcome"]) for r in rows[3:]], [
+            ("Approval cancelled", "manager Daniel Okafor [SYNTHESIZED] approved at 2026-10-08T16:40:00-07:00; "
+                                   "reason: intake or pack changed after approval"),
+            ("Approval requested", "manager asked"),
+        ])
 
     def test_figma_routes_to_manager_only(self):
         figma = load_sample("figma")

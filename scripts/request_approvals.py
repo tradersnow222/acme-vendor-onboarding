@@ -2,7 +2,7 @@ import argparse
 import sys
 from datetime import date, datetime
 
-from scripts.approvals import CONFIG_PATH, load_config
+from scripts.approvals import CONFIG_PATH, cancel_changed_approvals, content_hash, load_config
 from scripts.intake_check import check_intake
 from scripts.route import route_request
 from scripts.status import RUNS_DIR, append_audit_row
@@ -89,6 +89,7 @@ def main(argv):
     ticket = read_ticket(args.ticket, args.tickets_dir)
     names = load_config(args.config).get("approvers", {})
     reset = reset_approvers(ticket, names) if args.reset_approvers else []
+    cancelled = cancel_changed_approvals(ticket["approvers"], content_hash(ticket))
     result, requested = request_approvals(ticket, args.at, args.today or at_time.date(), names)
     if result["blocked"]:
         print(f"{args.ticket}: blocked: {'; '.join(result['blocked_reasons'])}")
@@ -106,6 +107,18 @@ def main(argv):
             "actor": "scripts.request_approvals",
             "timestamp_pt": args.at,
             "outcome": f"{role} refilled from config",
+            "est_cost": "~0",
+            "data_label": "SYNTHESIZED",
+        }, args.runs_dir)
+    for role, old in cancelled:
+        conditions = f"; conditions: {'; '.join(old['conditions'])}" if old["conditions"] else ""
+        append_audit_row(args.ticket, {
+            "step": "Approval cancelled",
+            "actor_type": "script",
+            "actor": "scripts.request_approvals",
+            "timestamp_pt": args.at,
+            "outcome": f"{role} {old['name']} {old['decision']} at {old['at']}{conditions}; "
+                       "reason: intake or pack changed after approval",
             "est_cost": "~0",
             "data_label": "SYNTHESIZED",
         }, args.runs_dir)

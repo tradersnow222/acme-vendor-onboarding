@@ -1,3 +1,4 @@
+import hashlib
 import json
 import re
 from datetime import datetime, timedelta
@@ -32,6 +33,22 @@ def record_decision(approvers, role, name, decision, at, conditions):
         raise ValueError(f"cannot move {role} from {current} to {decision}")
     entry = {"name": name, "decision": decision, "at": at, "conditions": list(conditions)}
     return {**approvers, role: entry}
+
+
+def content_hash(ticket):
+    pack_path = ticket["research"].get("pack_path")
+    pack = json.loads(Path(pack_path).read_text()) if pack_path else None
+    blob = json.dumps({"intake": ticket["intake"], "pack": pack}, sort_keys=True)
+    return hashlib.sha256(blob.encode()).hexdigest()
+
+
+def cancel_changed_approvals(approvers, current_hash):
+    cancelled = []
+    for role, entry in approvers.items():
+        if entry["decision"] in ("approved", "approved_with_conditions") and entry.get("hash") not in (None, current_hash):
+            cancelled.append((role, entry))
+            approvers[role] = {"name": entry["name"], "decision": "waiting", "at": None, "conditions": []}
+    return cancelled
 
 
 def overall_decision(approvers):
