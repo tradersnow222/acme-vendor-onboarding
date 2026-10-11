@@ -1,6 +1,7 @@
 import csv
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -125,6 +126,7 @@ class MakefileTest(unittest.TestCase):
         audit = re.search(r"^audit:\n((?:\t.*\n)+)", makefile, re.M).group(1)
         self.assertIn("runs/$(TICKET)/audit.csv", audit)
 
+    @unittest.skipUnless(shutil.which("make"), "make is not installed")
     def test_test_target_finds_tests_from_any_directory(self):
         with tempfile.TemporaryDirectory() as tmp:
             recipe = subprocess.run(["make", "-s", "-n", "-f", str(MAKEFILE), "test"],
