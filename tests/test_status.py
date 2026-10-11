@@ -186,6 +186,39 @@ class StatusTest(unittest.TestCase):
         self.assertIn("days open: 0.2", result.stdout)
         self.assertIn("steps: 0 script, 0 model, 0 person", result.stdout)
 
+    def test_withdrawn_ticket_shows_withdrawn_status(self):
+        sample = load_sample("zendesk")
+        request_id = sample["request_id"]
+        self.make_ticket(sample, [], security=True, counts=ZENDESK_COUNTS)
+        ticket = read_ticket(request_id, self.tickets_dir)
+        ticket.update({
+            "final_decision": "withdrawn",
+            "withdrawn_by": "Alice Chan",
+            "withdrawn_reason": "no longer needed",
+            "closed_at": "2026-10-09T14:30:00-07:00",
+        })
+        ticket_path(request_id, self.tickets_dir).write_text(json.dumps(ticket, indent=2) + "\n")
+        append_audit_row(request_id, person_row("Withdraw", "Alice Chan", "2026-10-09T14:30:00-07:00"),
+                         self.runs_dir)
+        status = build_status(ticket, read_audit(request_id, self.runs_dir), NOW)
+        self.assertEqual(status["decision"], "withdrawn")
+        self.assertEqual(status["withdrawn_by"], "Alice Chan")
+        self.assertEqual(status["withdrawn_reason"], "no longer needed")
+        self.assertEqual(status["closed_at"], "2026-10-09T14:30:00-07:00")
+        result = subprocess.run(
+            [sys.executable, "-m", "scripts.status", "--ticket", request_id, "--tickets-dir", str(self.tickets_dir),
+             "--runs-dir", str(self.runs_dir), "--now", NOW],
+            cwd=REPO_ROOT, capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        lines = result.stdout.splitlines()
+        self.assertEqual(lines[0], "VR-0001: withdrawn")
+        self.assertEqual(lines[1], "withdrawn by: Alice Chan")
+        self.assertEqual(lines[2], "reason: no longer needed")
+        self.assertEqual(lines[3], "closed at: 2026-10-09T14:30:00-07:00")
+        self.assertIn("days open:", lines[4])
+        self.assertIn("exceptions:", lines[5])
+
 
 if __name__ == "__main__":
     unittest.main()
