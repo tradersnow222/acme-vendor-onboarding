@@ -54,7 +54,7 @@ clean:
 	@echo "✓ Clean complete"
 
 test:
-	python3 -m unittest discover -s tests -v
+	cd "$(dir $(abspath $(firstword $(MAKEFILE_LIST))))" && python3 -m unittest discover -s tests -v
 
 run:
 	@python3 -m scripts.run $(SAMPLE)
