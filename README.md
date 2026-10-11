@@ -8,60 +8,9 @@ Governed workflow for vendor onboarding: intake → research pack → approval r
 
 **Problem:** Maya Chen (Staff Ops) owns vendor onboarding. Current process takes 1-2 weeks (messy intake, manual research, late approvals). Leadership wants 1-2 days with clear audit trails.
 
-**Flow:**
+**Who cares about what:** Security cares about what agents can touch, LOB leaders care about cycle time and exception rate, and eng cares about integrations and ownership.
 
-```mermaid
-flowchart LR
-    A[Requester] --> B[Grok Bot<br/>SCRIPT]
-    B --> C[Research agent<br/>MODEL]
-    C --> D[Manager + Security<br/>PERSON]
-    D --> E[Recorded decision<br/>SCRIPT]
-    E --> F[Status & digest<br/>SCRIPT]
-    
-    style A fill:#e1f5ff
-    style B fill:#e8f5e9
-    style C fill:#fff3e0
-    style D fill:#fce4ec
-    style E fill:#e8f5e9
-    style F fill:#e8f5e9
-```
-
-**What happens:**
-
-| You say | What runs | Who decides |
-|---------|-----------|-------------|
-| "Onboard Zendesk for 90-day pilot..." | Bot validates 5 fields (SCRIPT) | Requester answers follow-ups |
-| "Launch research" | Cloud agent fetches public pages (MODEL) | None (public sources only) |
-| (Pack ready) | Bot presents pack summary | Requester reviews |
-| (Route for approval) | Bot notifies manager + Security if customer data (SCRIPT) | Manager + Security approve/reject |
-| "Approved" or "Rejected" | Bot records decision with name + quote (SCRIPT) | None (recording only) |
-| "Close ticket" | Bot closes when all approvers decided (SCRIPT) | None |
-| "What's the status?" | Bot reads ticket + audit log (SCRIPT) | None |
-| (Silence from approver) | Bot nudges after configured hours (SCRIPT) | Ops reviews |
-
-**Guardrails:**
-- **Impossible:** Bot has no email, no private data access. Approvals stored with hash; changes invalidate.
-- **Check:** Scripts validate 5 fields, check pack (R1/R3/R4/R10 + source URLs), gate routing, cross-check intake vs R3.
-- **Rule:** `.cursor/rules/` define policy (5 fields, R1-R11, manager always + Security when customer data, public sources only).
-- **Person:** Requester confirms before research. Manager + Security approve in their own words. Ops reviews digest.
-
-**Proof (VR-0010 RevenueCat):** Opened 10:37:41 PT, closed 10:45:00 PT (~7 min). Requester: Matt Snow (demo requester, recorded as Support Lead). Pack: 10:37:50–10:41:29 (~3.5 min), check PASS (12 rows, 0 not found). Approvals: Daniel Okafor + Lena Hoffmann (both approved_with_conditions). Audit: 7 rows (4 script, 1 model, 2 person). Exceptions: 0.
-
-**Mocked / Synthesized / Live:**
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| **Bot, scripts, cloud agent** | Live | Real Grok Bot, local Python scripts, Cursor API (`--live` flag) |
-| **Sample requesters, approvers, pilot details** | Synthesized | Fictional Acme people labeled `[SYNTHESIZED]` in `data/samples/` |
-| **Vendor websites, public pricing, trust pages** | Live | Real public pages (Zendesk, Figma, Asana, RevenueCat) |
-
-Security cares about what agents can touch, LOB leaders care about cycle time and exception rate, and eng cares about integrations and ownership.
-
----
-
-## Reference (details below)
-
-<details><summary>Owners</summary>
+<details><summary>Who owns what</summary>
 
 | Role | Owner | Notes |
 |------|-------|-------|
@@ -71,7 +20,27 @@ Security cares about what agents can touch, LOB leaders care about cycle time an
 
 </details>
 
-<details><summary>Detailed Flow</summary>
+**Flow:**
+
+```mermaid
+flowchart LR
+    A[Requester] --> B[Grok Bot<br/>MODEL]
+    B --> C[Research agent<br/>MODEL]
+    C --> D[Manager + Security<br/>PERSON]
+    D --> E[Recorded decision<br/>SCRIPT]
+    E --> F[Status & digest<br/>SCRIPT]
+    
+    style A fill:#e1f5ff
+    style B fill:#fff3e0
+    style C fill:#fff3e0
+    style D fill:#fce4ec
+    style E fill:#e8f5e9
+    style F fill:#e8f5e9
+```
+
+SCRIPT = code decides, MODEL = AI, PERSON = human decides
+
+<details><summary>How each step works</summary>
 
 ```mermaid
 flowchart TD
@@ -113,7 +82,20 @@ flowchart TD
 
 </details>
 
-<details><summary>Bot Actions</summary>
+**What happens:**
+
+| You say | What runs | Who decides |
+|---------|-----------|-------------|
+| "Onboard Zendesk for 90-day pilot..." | Bot validates 5 fields (SCRIPT) | Requester answers follow-ups |
+| "Launch research" | Cloud agent fetches public pages (MODEL) | None (public sources only) |
+| (Pack ready) | Bot presents pack summary | Requester reviews |
+| (Route for approval) | Bot notifies manager + Security if customer data (SCRIPT) | Manager + Security approve/reject |
+| "Approved" or "Rejected" | Bot records decision with name + quote (SCRIPT) | None (recording only) |
+| "Close ticket" | Bot closes when all approvers decided (SCRIPT) | None |
+| "What's the status?" | Bot reads ticket + audit log (SCRIPT) | None |
+| (Silence from approver) | Bot nudges after configured hours (SCRIPT) | Ops reviews |
+
+<details><summary>All bot actions</summary>
 
 | User Action | Script Run | Actor | Human Checkpoint |
 |-------------|------------|-------|------------------|
@@ -142,7 +124,7 @@ flowchart TD
 
 </details>
 
-<details><summary>Bot Capabilities</summary>
+<details><summary>What the bot can and can't do</summary>
 
 The bot **CAN**:
 - Collect the five required intake fields
@@ -162,7 +144,13 @@ The bot **CANNOT**:
 
 </details>
 
-<details><summary>Guardrails (Four Layers)</summary>
+**Guardrails:**
+- **Impossible:** Bot has no email, no private data access. Approvals stored with hash; changes invalidate.
+- **Check:** Scripts validate 5 fields, check pack (R1/R3/R4/R10 + source URLs), gate routing, cross-check intake vs R3.
+- **Rule:** `.cursor/rules/` define policy (5 fields, R1-R11, manager always + Security when customer data, public sources only).
+- **Person:** Requester confirms before research. Manager + Security approve in their own words. Ops reviews digest.
+
+<details><summary>Four-layer detail</summary>
 
 **1. Impossible (technical blocks)**
 - Bot has no email integration (cannot send external email)
@@ -188,6 +176,72 @@ The bot **CANNOT**:
 - Ops reviews daily digest (open requests, exceptions, days open)
 
 </details>
+
+**Proof (VR-0010 RevenueCat):** Opened 10:37:41 PT, closed 10:45:00 PT (~7 min). Requester: Matt Snow (demo requester, recorded as Support Lead). Pack: 10:37:50–10:41:29 (~3.5 min), check PASS (12 rows, 0 not found). Approvals: Daniel Okafor + Lena Hoffmann (both approved_with_conditions). Audit: 7 rows (4 script, 1 model, 2 person). Exceptions: 0.
+
+<details><summary>Full VR-0010 timeline</summary>
+
+Request opened **2026-10-11 10:37:41 PT**, closed **10:45:00 PT** (~7 minutes).
+
+**Requester:** Matt Snow (demo requester, recorded as Support Lead)  
+**Vendor:** RevenueCat  
+
+**Intake:** passed (5 fields).
+
+**Research pack:** Built via cloud agent 10:37:50–10:41:29 (~3.5 minutes). Pack check: **PASS** (12 rows, 0 not found).
+
+**Routing:** Manager + Security (customer data = yes).
+
+**Approvals:**
+- **Daniel Okafor** [SYNTHESIZED], Director of Customer Support: **approved_with_conditions**, 2026-10-11 10:44 PT  
+  - Condition: "AI sub-processors (OpenAI, Anthropic) reviewed before customer data goes in"
+- **Lena Hoffmann** [SYNTHESIZED], Security & GRC Lead: **approved_with_conditions**, 2026-10-11 10:45 PT  
+  - Condition: "Need to review subprocessors first"
+
+**Audit log** (`runs/VR-0010/audit.csv`):
+- 7 rows total: 4 script, 1 model, 2 person
+
+**Days open:** 0.0 (same day).  
+**Exceptions:** 0.
+
+</details>
+
+**Mocked / Synthesized / Live:**
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Bot, scripts, cloud agent** | Live | Real Grok Bot, local Python scripts, Cursor API (`--live` flag) |
+| **Sample requesters, approvers, pilot details** | Synthesized | Fictional Acme people labeled `[SYNTHESIZED]` in `data/samples/` |
+| **Vendor websites, public pricing, trust pages** | Live | Real public pages (Zendesk, Figma, Asana, RevenueCat) |
+
+<details><summary>Complete component status</summary>
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Grok Bot intake** | Live | Acme Vendors bot; `make run` replays sample messages |
+| **Field validation** | Live | `scripts/intake_check.py`, runs locally |
+| **Follow-up picker** | Live | `scripts/followup.py`, runs locally |
+| **Research pack template** | Live | `templates/research_pack.json` (R1-R11) |
+| **Pack checker** | Live | `scripts/check_pack.py`, validates must-haves + source URLs |
+| **Cloud agent (via API)** | Live | Cursor API with `--live` flag; dry run by default |
+| **Public data sources** | Live | Real vendor websites, trust pages, pricing (public only) |
+| **Webhook notification** | Live | `.cursor/hooks.json` stop hook → `scripts/notify_research_done.py` |
+| **Sample requesters & approvers** | Synthesized | Fictional Acme people, labeled `[SYNTHESIZED]` in `data/samples/` |
+| **Sample vendors** | Mixed | Real public companies (Zendesk, Figma, Asana, RevenueCat); pilot details synthesized |
+| **Zendesk research pack** | Public | Hand-run from public pages 2026-10-08; kept as expected pack in samples |
+| **Approval routing** | Live | `scripts/route.py`, runs locally |
+| **Approval recorder** | Live | `scripts/record_approval.py`, runs locally |
+| **Audit log** | Live | `scripts/status.py` appends rows, runs locally |
+| **Status generator** | Live | `scripts/status.py` reads ticket + audit, runs locally |
+| **Manager approvals in bot** | Live | Real humans in production; played by Matt in demo |
+| **Security approvals in bot** | Live | Real Security team in production; played by Matt in demo |
+| **Approvals in `make run`** | Mocked | Pre-set `approver_replies` in `data/samples/` |
+
+</details>
+
+---
+
+## Reference
 
 <details><summary>Folder Layout</summary>
 
@@ -222,59 +276,7 @@ The bot reads the rules to word follow-up questions and pack summaries. The scri
 
 </details>
 
-<details><summary>Full VR-0010 Details</summary>
-
-Request opened **2026-10-11 10:37:41 PT**, closed **10:45:00 PT** (~7 minutes).
-
-**Requester:** Matt Snow (demo requester, recorded as Support Lead)  
-**Vendor:** RevenueCat  
-
-**Intake:** passed (5 fields).
-
-**Research pack:** Built via cloud agent 10:37:50–10:41:29 (~3.5 minutes). Pack check: **PASS** (12 rows, 0 not found).
-
-**Routing:** Manager + Security (customer data = yes).
-
-**Approvals:**
-- **Daniel Okafor** [SYNTHESIZED], Director of Customer Support: **approved_with_conditions**, 2026-10-11 10:44 PT  
-  - Condition: "AI sub-processors (OpenAI, Anthropic) reviewed before customer data goes in"
-- **Lena Hoffmann** [SYNTHESIZED], Security & GRC Lead: **approved_with_conditions**, 2026-10-11 10:45 PT  
-  - Condition: "Need to review subprocessors first"
-
-**Audit log** (`runs/VR-0010/audit.csv`):
-- 7 rows total: 4 script, 1 model, 2 person
-
-**Days open:** 0.0 (same day).  
-**Exceptions:** 0.
-
-</details>
-
-<details><summary>Component Status (Complete)</summary>
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| **Grok Bot intake** | Live | Acme Vendors bot; `make run` replays sample messages |
-| **Field validation** | Live | `scripts/intake_check.py`, runs locally |
-| **Follow-up picker** | Live | `scripts/followup.py`, runs locally |
-| **Research pack template** | Live | `templates/research_pack.json` (R1-R11) |
-| **Pack checker** | Live | `scripts/check_pack.py`, validates must-haves + source URLs |
-| **Cloud agent (via API)** | Live | Cursor API with `--live` flag; dry run by default |
-| **Public data sources** | Live | Real vendor websites, trust pages, pricing (public only) |
-| **Webhook notification** | Live | `.cursor/hooks.json` stop hook → `scripts/notify_research_done.py` |
-| **Sample requesters & approvers** | Synthesized | Fictional Acme people, labeled `[SYNTHESIZED]` in `data/samples/` |
-| **Sample vendors** | Mixed | Real public companies (Zendesk, Figma, Asana, RevenueCat); pilot details synthesized |
-| **Zendesk research pack** | Public | Hand-run from public pages 2026-10-08; kept as expected pack in samples |
-| **Approval routing** | Live | `scripts/route.py`, runs locally |
-| **Approval recorder** | Live | `scripts/record_approval.py`, runs locally |
-| **Audit log** | Live | `scripts/status.py` appends rows, runs locally |
-| **Status generator** | Live | `scripts/status.py` reads ticket + audit, runs locally |
-| **Manager approvals in bot** | Live | Real humans in production; played by Matt in demo |
-| **Security approvals in bot** | Live | Real Security team in production; played by Matt in demo |
-| **Approvals in `make run`** | Mocked | Pre-set `approver_replies` in `data/samples/` |
-
-</details>
-
----
+<details><summary>How to Run</summary>
 
 ## How to Run
 
@@ -377,6 +379,24 @@ Webhook POSTs JSON: `{"ticket_id": "VR-0001", "status": "completed"}`. Never sen
 
 **Approvals in bot:** Live (real people respond). In `make run`: mocked (pre-set replies in samples).
 
+</details>
+
+<details><summary>Development Workflow</summary>
+
+## Development Workflow
+
+See `.cursor/rules/git-workflow.mdc` and `AGENTS.md` for full details.
+
+**Summary:**
+- Work on a new branch for every change
+- Open a pull request for Matt to review
+- Never commit or push directly to `main`
+- Never merge your own pull request
+- Never force-push
+- Write small, focused commits with clear messages explaining **why**
+
+</details>
+
 ---
 
 ## Tradeoffs and Next Steps
@@ -422,20 +442,6 @@ Webhook POSTs JSON: `{"ticket_id": "VR-0001", "status": "completed"}`. Never sen
 5. **Rotate API key:** Set 90-day rotation policy, add expiration alert
 6. **Budget approval gate:** Route pilots > $5k to Finance before manager
 7. **Duplicate detection:** Check for existing vendor pilots before creating new request
-
----
-
-## Development Workflow
-
-See `.cursor/rules/git-workflow.mdc` and `AGENTS.md` for full details.
-
-**Summary:**
-- Work on a new branch for every change
-- Open a pull request for Matt to review
-- Never commit or push directly to `main`
-- Never merge your own pull request
-- Never force-push
-- Write small, focused commits with clear messages explaining **why**
 
 ---
 
