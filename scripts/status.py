@@ -49,7 +49,8 @@ def append_audit_row(request_id, row, runs_dir=RUNS_DIR):
 
 def build_status(ticket, audit_rows, now):
     approvers = ticket["approvers"]
-    decision = overall_decision(approvers)
+    final_decision = ticket.get("final_decision")
+    decision = final_decision if final_decision == "withdrawn" else overall_decision(approvers)
     opened = datetime.fromisoformat(ticket.get("created_at") or audit_rows[0]["timestamp_pt"])
     end = datetime.fromisoformat(ticket.get("closed_at") or now)
     days_open = round((end - opened).total_seconds() / 86400, 1)
@@ -60,7 +61,7 @@ def build_status(ticket, audit_rows, now):
         "rejections": sum(a["decision"] == "rejected" for a in approvers.values()),
     }
     exceptions["total"] = sum(exceptions.values())
-    return {
+    status = {
         "decision": decision,
         "approvers": {
             role: {key: a[key] for key in ("name", "decision", "at", "conditions")}
@@ -72,15 +73,25 @@ def build_status(ticket, audit_rows, now):
         "nudges": counts["nudges"],
         "steps_by_actor_type": dict(Counter(row["actor_type"] for row in audit_rows)),
     }
+    if decision == "withdrawn":
+        status["withdrawn_by"] = ticket.get("withdrawn_by")
+        status["withdrawn_reason"] = ticket.get("withdrawn_reason")
+        status["closed_at"] = ticket.get("closed_at")
+    return status
 
 
 def format_status(request_id, status):
     lines = [f"{request_id}: {status['decision']}"]
-    for role, a in status["approvers"].items():
-        line = f"{role}: {a['name'] or '-'}, {a['decision']}, {a['at'] or '-'}"
-        if a["conditions"]:
-            line += f"; conditions: {'; '.join(a['conditions'])}"
-        lines.append(line)
+    if status["decision"] == "withdrawn":
+        lines.append(f"withdrawn by: {status['withdrawn_by']}")
+        lines.append(f"reason: {status['withdrawn_reason']}")
+        lines.append(f"closed at: {status['closed_at']}")
+    else:
+        for role, a in status["approvers"].items():
+            line = f"{role}: {a['name'] or '-'}, {a['decision']}, {a['at'] or '-'}"
+            if a["conditions"]:
+                line += f"; conditions: {'; '.join(a['conditions'])}"
+            lines.append(line)
     ex = status["exceptions"]
     steps = status["steps_by_actor_type"]
     lines += [
