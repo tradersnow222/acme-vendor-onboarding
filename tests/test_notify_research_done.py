@@ -62,9 +62,10 @@ class NotifyResearchDoneTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def run_script(self, stdin_data, env_override=None, cwd=None):
-        env = {**os.environ}
-        if env_override:
-            env.update(env_override)
+        if env_override is not None:
+            env = env_override
+        else:
+            env = {**os.environ}
         
         script_path = REPO_ROOT / "scripts" / "notify_research_done.py"
         result = subprocess.run(
@@ -88,7 +89,7 @@ class NotifyResearchDoneTest(unittest.TestCase):
         
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
-        self.assertEqual(result.stderr, "")
+        self.assertIn("missing ACME_WEBHOOK_URL or ACME_WEBHOOK_SECRET", result.stderr)
 
     def test_exact_hooks_json_command_with_no_env(self):
         result = subprocess.run(
@@ -103,13 +104,14 @@ class NotifyResearchDoneTest(unittest.TestCase):
         
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
-        self.assertEqual(result.stderr, "")
+        self.assertIn("missing ACME_WEBHOOK_URL or ACME_WEBHOOK_SECRET", result.stderr)
 
     def test_missing_ticket_id_does_nothing(self):
         with MockServerContext() as mock:
             result = self.run_script(
                 '{"status": "completed"}',
                 env_override={
+                    **os.environ,
                     "ACME_WEBHOOK_URL": f"http://127.0.0.1:{mock.port}/webhook",
                     "ACME_WEBHOOK_SECRET": "secret123",
                 }
@@ -117,6 +119,7 @@ class NotifyResearchDoneTest(unittest.TestCase):
             
             self.assertEqual(result.returncode, 0)
             self.assertEqual(len(MockWebhookHandler.received_requests), 0)
+            self.assertIn("no .research_ticket_id file found", result.stderr)
 
     def test_webhook_sends_correct_payload_and_header(self):
         with MockServerContext() as mock:
@@ -127,6 +130,7 @@ class NotifyResearchDoneTest(unittest.TestCase):
             result = self.run_script(
                 '{"status": "completed"}',
                 env_override={
+                    **os.environ,
                     "ACME_WEBHOOK_URL": f"http://127.0.0.1:{mock.port}/webhook",
                     "ACME_WEBHOOK_SECRET": "secret123",
                     "RUNS_DIR": self.runs,
@@ -146,6 +150,8 @@ class NotifyResearchDoneTest(unittest.TestCase):
             
             marker = Path(self.runs) / "VR-0001" / ".webhook_sent"
             self.assertTrue(marker.exists())
+            
+            self.assertIn("webhook sent successfully for VR-0001", result.stderr)
 
     def test_custom_webhook_key_header(self):
         with MockServerContext() as mock:
@@ -156,6 +162,7 @@ class NotifyResearchDoneTest(unittest.TestCase):
             result = self.run_script(
                 '{"status": "failed"}',
                 env_override={
+                    **os.environ,
                     "ACME_WEBHOOK_URL": f"http://127.0.0.1:{mock.port}/webhook",
                     "ACME_WEBHOOK_SECRET": "my-secret",
                     "ACME_WEBHOOK_KEY_HEADER": "Authorization",
@@ -178,6 +185,7 @@ class NotifyResearchDoneTest(unittest.TestCase):
             (workspace / ".research_ticket_id").write_text("VR-0003")
             
             env = {
+                **os.environ,
                 "ACME_WEBHOOK_URL": f"http://127.0.0.1:{mock.port}/webhook",
                 "ACME_WEBHOOK_SECRET": "secret123",
                 "RUNS_DIR": self.runs,
@@ -185,9 +193,11 @@ class NotifyResearchDoneTest(unittest.TestCase):
             
             result1 = self.run_script('{"status": "completed"}', env_override=env, cwd=workspace)
             self.assertEqual(result1.returncode, 0)
+            self.assertIn("webhook sent successfully for VR-0003", result1.stderr)
             
             result2 = self.run_script('{"status": "completed"}', env_override=env, cwd=workspace)
             self.assertEqual(result2.returncode, 0)
+            self.assertIn("webhook already sent for VR-0003", result2.stderr)
             
             self.assertEqual(len(MockWebhookHandler.received_requests), 1)
 
@@ -199,6 +209,7 @@ class NotifyResearchDoneTest(unittest.TestCase):
         result = self.run_script(
             '{"status": "completed"}',
             env_override={
+                **os.environ,
                 "ACME_WEBHOOK_URL": "http://127.0.0.1:1/invalid",
                 "ACME_WEBHOOK_SECRET": "secret123",
                 "RUNS_DIR": self.runs,
@@ -209,6 +220,33 @@ class NotifyResearchDoneTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         marker = Path(self.runs) / "VR-0004" / ".webhook_sent"
         self.assertFalse(marker.exists())
+        self.assertIn("webhook failed for VR-0004", result.stderr)
+
+    def test_log_file_is_written(self):
+        workspace = Path(self.dir) / "workspace"
+        workspace.mkdir()
+        (workspace / ".research_ticket_id").write_text("VR-0005")
+        
+        with MockServerContext() as mock:
+            result = self.run_script(
+                '{"status": "completed"}',
+                env_override={
+                    **os.environ,
+                    "ACME_WEBHOOK_URL": f"http://127.0.0.1:{mock.port}/webhook",
+                    "ACME_WEBHOOK_SECRET": "secret123",
+                    "RUNS_DIR": self.runs,
+                },
+                cwd=workspace
+            )
+            
+            self.assertEqual(result.returncode, 0)
+            
+            log_file = workspace / ".hook.log"
+            self.assertTrue(log_file.exists())
+            
+            log_contents = log_file.read_text()
+            self.assertIn("webhook sent successfully for VR-0005", log_contents)
+            self.assertIn("status: completed", log_contents)
 
 
 if __name__ == "__main__":
