@@ -8,7 +8,7 @@ from scripts.followup import pick_followups
 from scripts.intake_check import check_intake
 from scripts.launch_research import build_body
 from scripts.route import format_result, inputs_from_sample, route_request
-from scripts.samples import list_samples, load_sample
+from scripts.samples import list_samples, load_sample, sample_fetch_log
 from scripts.status import ACTOR_TYPES, append_audit_row, audit_path, build_status, read_audit
 from scripts.ticket import create_ticket, ticket_path
 from scripts.write_back import write_ticket
@@ -62,7 +62,7 @@ def run(name):
     if rows is None:
         step(5, "script", "Pack check", NOT_BUILT, steps)
     else:
-        pack = check_pack(rows)
+        pack = check_pack(rows, sample_fetch_log(request_id))
         ticket["counts"]["exceptions"]["not_found_pack_rows"] = pack["not_found"]
         verdict = "PASS" if pack["passed"] else "FAIL"
         step(5, "script", "Pack check", f"{verdict} ({len(rows)} rows, {pack['not_found']} not_found)", steps)

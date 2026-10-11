@@ -4,7 +4,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from scripts.samples import load_sample
+from scripts.samples import load_sample, sample_fetch_log
 
 REQUIRED_ITEMS = [f"R{n}" for n in range(1, 11)]
 MUST_BE_FOUND = ["R1", "R3", "R4", "R10"]

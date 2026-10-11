@@ -12,6 +12,10 @@ def list_samples():
     return [path.stem.split("-", 2)[2] for path in _sample_paths()]
 
 
+def sample_fetch_log(request_id):
+    return next(SAMPLES_DIR.glob(f"{request_id.lower()}-*-fetch-log.csv"), None)
+
+
 def load_sample(name):
     key = name.lower()
     for path in _sample_paths():
