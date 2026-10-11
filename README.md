@@ -30,19 +30,7 @@ Governed workflow for vendor onboarding: intake → research pack → approval r
 - End-to-end typically 1-2 weeks
 - Leadership wants 1-2 days with clear records
 
-### Concerns by Role
-
-**Line of Business (LOB)**
-- "How do I check status without hunting through email?"
-- "Why does it take a week to get approval for a standard tool?"
-
-**Security**
-- "I need to see what data the vendor would hold before I approve"
-- "Where's the audit trail showing who checked what and when?"
-
-**Engineering**
-- "Can we automate the research without touching private data?"
-- "How do we track cost and prevent runaway API spend?"
+Security cares about what agents can touch, LOB leaders care about cycle time and exception rate, and eng cares about integrations and ownership.
 
 ### Owners
 
@@ -50,7 +38,7 @@ Governed workflow for vendor onboarding: intake → research pack → approval r
 |------|-------|-------|
 | **Ops** | Maya Chen [SYNTHESIZED] | Staff Ops; owns vendor onboarding process |
 | **Security** | Lena Hoffmann [SYNTHESIZED] | Security & GRC Lead; approves when vendor touches customer data |
-| **Eng** | Matt Snow | Repository owner; maintains automation |
+| **Eng** | Eng [SYNTHESIZED] | Repository owner; maintains automation |
 
 ---
 
@@ -234,10 +222,10 @@ The bot reads the rules to word follow-up questions and pack summaries. The scri
 
 Request opened **2026-10-11 10:37:41 PT**, closed **10:45:00 PT** (~7 minutes).
 
-**Requester:** Matt Snow [SYNTHESIZED], Support Lead  
+**Requester:** Matt Snow (demo requester, recorded as Support Lead)  
 **Vendor:** RevenueCat  
 
-**Intake:** Complete (no follow-ups).
+**Intake:** passed (5 fields).
 
 **Research pack:** Built via cloud agent 10:37:50–10:41:29 (~3.5 minutes). Pack check: **PASS** (12 rows, 0 not found).
 
