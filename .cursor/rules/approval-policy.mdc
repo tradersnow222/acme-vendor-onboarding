@@ -31,3 +31,6 @@ Overall request:
 
 ## Silence
 Silence leaves the approver at `waiting`. After the configured number of hours it only triggers a nudge to that approver, logged in the audit log. The nudge routine runs a few times a day at most.
+
+## Requester withdraw
+A requester may withdraw their request at any time before the ticket is closed. A withdrawn request is closed with `final_decision = withdrawn`. The withdraw needs the requester's own words: the `--by` name and the `--reason` text. A withdrawn request is treated as closed: it appears in neither the open-ticket digest nor the status view's open count.
