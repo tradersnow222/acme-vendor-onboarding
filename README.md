@@ -1,89 +1,287 @@
 # Acme Vendor Onboarding Automation
 
-A governed workflow for vendor onboarding at Acme, Inc.: intake → research pack → approval routing. Built with Grok Bot and Grok Build (Cursor), using public and synthesized data only.
+Governed workflow for vendor onboarding: intake → research pack → approval routing. Built with Grok Bot and Grok Build (Cursor), using public and synthesized data only.
 
 ---
 
 ## The Problem
 
-**Maya Chen (Staff Ops, Acme)** owns the vendor onboarding process, which today takes 1-2 weeks due to manual handoffs and unclear approval flows. Leadership wants this down to 1-2 days with a clear audit trail.
+**Maya Chen (Staff Ops, Acme)** owns vendor onboarding. Current process takes 1-2 weeks. Leadership wants 1-2 days with clear audit trails.
 
-### Current Process: Intake → Research → Approval Routing
+### Four Friction Points
 
-When someone wants to pilot a vendor, the process has three stages but four key frictions:
+**1. Messy intake**
+- Email or ticket: "Onboard Vendor X for a 90-day pilot"
+- Five required fields often incomplete: vendor legal name, website, customer data flag, business owner, target start date
+- Ops chases missing fields over days of back-and-forth
 
-#### 1. **Intake is messy**
-- Requesters email or open a ticket: "Onboard Vendor X for a 90-day pilot"
-- Required fields are often incomplete:
-  - Vendor legal name
-  - Website
-  - Whether they will touch customer data
-  - Business owner
-  - Target start date
-- Ops chases missing fields over email, adding days of back-and-forth
+**2. Manual research copy/paste**
+- Ops manually gathers public vendor info (website, security page, pricing) into shared doc
+- No standard template or checklist
+- Inconsistent and time-consuming
 
-#### 2. **Research is manual copy/paste**
-- Ops manually gathers public vendor info (website, security/trust page, public pricing) into a shared doc
-- No standard pack template exists
-- No checklist defines what "enough research" means
-- Each pack is inconsistent and time-consuming to build
+**3. Late and unclear approvals**
+- Manager reviews whenever they notice the thread (no proactive routing)
+- Security pinged late, only if vendor touches customer data
+- No single status view
+- No audit trail
 
-#### 3. **Approvals are late and unclear**
-- A manager reviews whenever they notice the thread (no proactive routing)
-- Security is pinged late, and only if the vendor touches customer data
-- No single status view exists
-- No audit trail shows what was checked or who approved what
+**4. Cycle time too long**
+- End-to-end typically 1-2 weeks
+- Leadership wants 1-2 days with clear records
 
-#### 4. **Cycle time is too long**
-- End-to-end typically takes **1-2 weeks** of handoffs
-- Leadership wants **1-2 days** with clear records of checks and approvals
+### Concerns by Role
+
+**Line of Business (LOB)**
+- "How do I check status without hunting through email?"
+- "Why does it take a week to get approval for a standard tool?"
+
+**Security**
+- "I need to see what data the vendor would hold before I approve"
+- "Where's the audit trail showing who checked what and when?"
+
+**Engineering**
+- "Can we automate the research without touching private data?"
+- "How do we track cost and prevent runaway API spend?"
 
 ---
 
-## The Solution: Governed Workflow with Bot + Build
+## Architecture
 
-### Planned Flow
+```mermaid
+flowchart TD
+    A[Requester] -->|message| B[Grok Bot<br/>Acme Vendors]
+    B -->|validate fields| C[scripts/intake_check.py<br/>SCRIPT]
+    C -->|complete| D[scripts/ticket.py<br/>SCRIPT]
+    D -->|launch research| E[scripts/launch_research.py<br/>SCRIPT]
+    E -->|via Cursor API| F[Cloud Agent<br/>build-research-pack<br/>MODEL]
+    F -->|stop hook| G[scripts/notify_research_done.py<br/>SCRIPT]
+    G -->|webhook POST| B
+    B -.->|5-min fallback| H[scripts/fetch_pack.py<br/>SCRIPT]
+    H -->|check pack| I[scripts/check_pack.py<br/>SCRIPT]
+    I -->|route| J[scripts/route.py<br/>SCRIPT]
+    J -->|notify| K[Manager PERSON<br/>Security PERSON]
+    K -->|reply| B
+    B -->|record| L[scripts/record_approval.py<br/>SCRIPT]
+    L -->|close| M[scripts/ticket.py --close<br/>SCRIPT]
+    M --> N[Status & Audit<br/>SCRIPT]
+    
+    style A fill:#e1f5ff
+    style B fill:#fff4e6
+    style C fill:#e8f5e9
+    style D fill:#e8f5e9
+    style E fill:#e8f5e9
+    style F fill:#fff3e0
+    style G fill:#e8f5e9
+    style H fill:#e8f5e9
+    style I fill:#e8f5e9
+    style J fill:#e8f5e9
+    style K fill:#fce4ec
+    style L fill:#e8f5e9
+    style M fill:#e8f5e9
+    style N fill:#e8f5e9
+```
 
-1. **Grok Bot is the front door**
-   - Requester starts by messaging the Acme bot
-   - Bot collects the five required fields, asking only for missing ones (max two rounds)
-   - Anyone can ask for status without hunting through email
+**Label Legend:** SCRIPT = script runs locally | MODEL = cloud agent or bot | PERSON = human checkpoint
 
-2. **Cursor holds the durable structure**
-   - **Rules** (`.cursor/rules/`): `data-boundaries`, `intake-policy`, `research-checklist`, `approval-policy`, `status-and-audit`, `git-workflow` (includes commit hygiene)
-   - **Skills**: `validate-intake`, `build-research-pack`
-   - **Scripts**: Field check, routing logic, audit log (with cost tracking), status generator, Cursor API launcher
+---
 
-3. **Cloud agent builds the research pack**
-   - Bot writes a research brief and starts a Cursor cloud agent via the Cursor API
-   - Agent gathers public info (website, trust page, pricing) using the research checklist
-   - Every item includes a source link or "not found" label
-   - Completed pack alerts the requester and manager
+## Bot Design
 
-4. **Approval routing is code-driven**
-   - **Manager approval**: Always required, routed automatically
-   - **Security approval**: Required when vendor will touch customer data
-   - **Named person only**: Silence never counts as approval
-   - Plain-English review summarizes the pack and flags any "not found" items
+Grok Bot (Acme Vendors) is the front door. Every action is backed by a script that enforces the rules. The bot words the question; the script decides what's missing.
 
-5. **Audit trail and status**
-   - Every step writes an audit log row: who, when, what they saw, cost
-   - Status file shows days open per request, exception count (missing fields, "not found" items, rejections), and whether each step was script/model/person
-   - Approved requests show approver name and timestamp
+| User Action | Script Run | Actor | Human Checkpoint |
+|-------------|------------|-------|------------------|
+| **Intake** | | | |
+| Requester sends "Onboard Zendesk for 90-day pilot..." | `scripts/intake_check.py` validates five fields | SCRIPT | None (validation only) |
+| Bot asks follow-up for missing fields (max 2 rounds) | `scripts/followup.py` picks questions | SCRIPT | Requester answers |
+| Bot creates ticket when complete | `scripts/ticket.py` writes JSON | SCRIPT | None |
+| **Research** | | | |
+| Bot launches cloud agent via Cursor API | `scripts/launch_research.py` | SCRIPT → MODEL | None (dry run by default, --live flag required) |
+| Cloud agent fetches public vendor pages | `.cursor/skills/build-research-pack` | MODEL | None (public sources only) |
+| Agent stops → webhook notifies bot | `.cursor/hooks.json` → `scripts/notify_research_done.py` | SCRIPT | None |
+| Bot falls back to polling every 5 min | `scripts/fetch_pack.py` checks agent status | SCRIPT | None |
+| Bot validates pack against checklist | `scripts/check_pack.py` (R1-R11, source URLs) | SCRIPT | Requester reviews pack summary |
+| **Approvals** | | | |
+| Bot routes to manager (always) + Security (if customer data) | `scripts/route.py` | SCRIPT | None |
+| Bot notifies each approver with pack summary | `scripts/request_approvals.py` | SCRIPT | Manager + Security review |
+| Approver replies in their own words | Bot presents reply | BOT → PERSON | Bot never decides; person decides |
+| Bot records decision with name + exact quote | `scripts/record_approval.py` | SCRIPT | None (recording only) |
+| **Close-out** | | | |
+| Requester withdraws request | `python3 -m scripts.ticket --withdraw <id> --by "<name>" --reason "<text>"` | PERSON | Requester's own words; script records it |
+| Bot closes when all approvers decided | `scripts/ticket.py --close` | SCRIPT | None |
+| **Status & Maintenance** | | | |
+| Anyone asks bot "What's the status of VR-0001?" | `scripts/status.py` reads ticket + audit | SCRIPT | None |
+| Bot nudges stale approvals (silence ≠ yes) | `scripts/stale_check.py` (configured hours) | SCRIPT | Approver gets reminder |
+| Bot sends daily digest to Ops | `scripts/digest.py` lists open requests | SCRIPT | Ops reviews exceptions |
 
-### Human-in-the-Loop Guardrails
+### Bot Prompt Rules (Key Constraints)
 
-- **Manager** approves every vendor
-- **Security** approves when customer data is involved
-- **Requester** can steer: change fields or re-run research
-- **Ops** sees daily digest: open requests, days open, exceptions, automated vs. needed-a-person
-- **No auto-approval**: The bot cannot approve, send email, or touch private data
+The bot **CAN**:
+- Collect the five required intake fields
+- Ask follow-up questions (max 2 rounds) for missing or invalid fields
+- Launch research via Cursor API with `--live` flag
+- Present research pack summary to requester and approvers
+- Record approver decisions with name, decision, timestamp, exact quote
+- Generate status reports and daily digest
+
+The bot **CANNOT**:
+- Approve a vendor (only named people approve)
+- Guess or invent missing intake fields
+- Fill in approver name or decision on someone's behalf
+- Send email outside the bot interface
+- Touch private data or vendor portals
+- Run research without `--live` flag (dry run by default)
+
+### Guardrails (Four Layers)
+
+**1. Impossible (technical blocks)**
+- Bot has no email integration (cannot send external email)
+- Bot has no write access to private data sources
+- Cloud agent can only fetch public URLs (no logins, no gated portals)
+- Approval decisions stored with hash of intake + pack; changes invalidate approval
+
+**2. Check (script validation before action)**
+- `scripts/intake_check.py` validates all five fields before routing
+- `scripts/check_pack.py` validates R1, R3, R4, R10 present and every row has source URL
+- `scripts/route.py` gates on intake complete + pack complete + business owner is named person
+- `scripts/check_pack.py` cross-checks intake `touches_customer_data` vs pack R3
+
+**3. Rule (documented policy in `.cursor/rules/`)**
+- `intake-policy.mdc`: Five fields, valid values, max 2 follow-up rounds
+- `research-checklist.mdc`: R1-R11 items, must-haves, public sources only
+- `approval-policy.mdc`: Manager always, Security when customer data, silence never counts
+- `data-boundaries.mdc`: Public sources only, no NDA content, no API keys in repo
+
+**4. Person (human decision point)**
+- Requester confirms vendor and pilot details before research launches
+- Requester reviews pack summary (especially "not found" items)
+- Manager and Security approve or reject in their own words
+- Ops reviews daily digest (open requests, exceptions, days open)
+
+---
+
+## Build: Folder Layout
+
+```
+acme-vendor-onboarding/
+├── scripts/                    # Python scripts (intake, routing, approvals, audit, status, Cursor API)
+│   ├── intake_check.py         # Validate five fields
+│   ├── followup.py             # Pick follow-up questions
+│   ├── ticket.py               # Create and close tickets
+│   ├── launch_research.py      # Launch cloud agent via Cursor API (dry run by default, --live flag)
+│   ├── fetch_pack.py           # Fetch pack from agent reply
+│   ├── check_pack.py           # Validate pack against checklist
+│   ├── route.py                # Route to manager + Security (conditional)
+│   ├── request_approvals.py    # Notify approvers
+│   ├── record_approval.py      # Record decision (name, decision, timestamp, quote)
+│   ├── status.py               # Generate status from ticket + audit
+│   ├── stale_check.py          # List approvals due a nudge
+│   ├── digest.py               # Daily Ops digest
+│   ├── notify_research_done.py # Webhook notification on agent stop
+│   └── run.py                  # Trace one sample through every step (make run)
+├── tests/                      # Unit tests (make test)
+├── data/samples/               # Sample vendor requests (synthesized)
+│   ├── vr-0001-zendesk.json    # Worked example (messy intake, one follow-up, manager + Security)
+│   ├── vr-0002-figma.json      # Clean request (no follow-ups, manager only)
+│   └── vr-0003-asana.json      # Exception (missing business owner)
+├── templates/                  # Research pack template
+│   └── research_pack.json      # R1-R11 items
+├── config/                     # Approval settings (nudge after N hours)
+├── tickets/                    # One JSON file per request (output, git-ignored)
+├── packs/                      # Research packs (output, git-ignored)
+├── runs/                       # Audit logs and agent run files (output, git-ignored)
+├── .cursor/
+│   ├── rules/                  # Cursor rules (8 files)
+│   │   ├── data-boundaries.mdc # Public sources only, no NDA, no secrets in repo
+│   │   ├── intake-policy.mdc   # Five fields, valid values, max 2 follow-ups
+│   │   ├── research-checklist.mdc # R1-R11 items, must-haves, source URLs required
+│   │   ├── approval-policy.mdc # Manager always, Security conditional, silence ≠ yes
+│   │   ├── status-and-audit.mdc # Days open, exception count, audit log format
+│   │   ├── git-workflow.mdc    # Branch + PR policy, commit hygiene
+│   │   ├── pr-style.mdc        # Plain title, ready for review, under 200 words
+│   │   └── verification.mdc    # Tests call scripts on samples, assert expected values
+│   ├── skills/                 # Skills (3)
+│   │   ├── validate-intake/    # Check five fields, pick follow-ups
+│   │   ├── build-research-pack/ # Gather R1-R11 from public sources
+│   │   └── verify-acme/        # Verify sample data is [SYNTHESIZED] or [PUBLIC]
+│   └── hooks.json              # Stop hook → notify_research_done.py
+├── Makefile                    # make setup, test, run, validate, route, status, audit, clean
+├── AGENTS.md                   # Agent guidelines (git workflow, data boundaries, approval policy)
+└── README.md                   # This file
+```
+
+### Rules vs Scripts
+
+**Rules explain policy** (`.cursor/rules/*.mdc`): five required fields, what counts as valid, who must approve, what "enough research" means, data boundaries.
+
+**Scripts enforce the rules** (`scripts/*.py`): validate intake, check pack, route approvals, record decisions, generate audit log.
+
+The bot reads the rules to word follow-up questions and pack summaries. The scripts are the source of truth for validation and routing.
+
+---
+
+## Real Run: VR-0010 RevenueCat
+
+Request received **2026-10-11 10:37 PT**, closed **2026-10-11 10:45 PT** (8 minutes).
+
+**Requester:** Jordan Lee [SYNTHESIZED], Growth Product Manager  
+**Vendor:** RevenueCat (revenuecat.com) – in-app subscription platform  
+**Pilot:** 90 days, iOS app integration  
+**Customer data:** Yes (purchase history, subscriber IDs, device IDs)
+
+**Intake:** Complete in one round (no follow-ups needed).
+
+**Research pack:** Built via cloud agent in 4 minutes. All must-haves found (R1, R3, R4, R10). Two "not found" items: R5 (SOC 2 report access) and R7 (data residency options).
+
+**Routing:** Manager + Security (customer data = yes).
+
+**Approvals:**
+- Manager (Alex Rivera [SYNTHESIZED], VP Product): approved, 2026-10-11 10:42 PT
+- Security (Lena Hoffmann [SYNTHESIZED], Security & GRC Lead): approved with conditions, 2026-10-11 10:45 PT
+  - Conditions: "DPA signed before integration" and "Request SOC 2 Type II report under NDA before production use"
+
+**Audit log** (`runs/VR-0010/audit.csv`) **actor_type column**:
+- 1 person (requester)
+- 10 script (intake, follow-up, ticket, fetch, check, route, record × 2, close, status)
+- 4 model (cloud agent research)
+- 2 person (manager + Security approvals)
+
+**Both conditions** recorded in ticket and audit log, carried forward to requester as checklist.
+
+**Days open:** 0.0 (same day).  
+**Exceptions:** 2 (two "not found" pack rows: R5, R7).
+
+---
+
+## Mocked vs Synthesized vs Live
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Grok Bot intake** | Live | Acme Vendors bot; `make run` replays sample messages |
+| **Field validation** | Live | `scripts/intake_check.py`, runs locally |
+| **Follow-up picker** | Live | `scripts/followup.py`, runs locally |
+| **Research pack template** | Live | `templates/research_pack.json` (R1-R11) |
+| **Pack checker** | Live | `scripts/check_pack.py`, validates must-haves + source URLs |
+| **Cloud agent (via API)** | Live | Cursor API with `--live` flag; dry run by default |
+| **Public data sources** | Live | Real vendor websites, trust pages, pricing (public only) |
+| **Webhook notification** | Live | `.cursor/hooks.json` stop hook → `scripts/notify_research_done.py` |
+| **Sample requesters & approvers** | Synthesized | Fictional Acme people, labeled `[SYNTHESIZED]` in `data/samples/` |
+| **Sample vendors** | Mixed | Real public companies (Zendesk, Figma, Asana, RevenueCat); pilot details synthesized |
+| **Zendesk research pack** | Public | Hand-run from public pages 2026-10-08; kept as expected pack in samples |
+| **Approval routing** | Live | `scripts/route.py`, runs locally |
+| **Approval recorder** | Live | `scripts/record_approval.py`, runs locally |
+| **Audit log** | Live | `scripts/status.py` appends rows, runs locally |
+| **Status generator** | Live | `scripts/status.py` reads ticket + audit, runs locally |
+| **Manager approvals in bot** | Live | Real humans in production; played by Matt in demo |
+| **Security approvals in bot** | Live | Real Security team in production; played by Matt in demo |
+| **Approvals in `make run`** | Mocked | Pre-set `approver_replies` in `data/samples/` |
 
 ---
 
 ## How to Run
 
-You need Python 3.9 or newer. There is nothing to pip install. Run every command from the repo root.
+Python 3.9 or newer. No pip installs. Run every command from repo root.
 
 ### 1. Set up
 
@@ -91,7 +289,7 @@ You need Python 3.9 or newer. There is nothing to pip install. Run every command
 make setup
 ```
 
-You should see `✓ Project structure ready`.
+Output: `✓ Project structure ready`
 
 ### 2. Test
 
@@ -99,9 +297,9 @@ You should see `✓ Project structure ready`.
 make test
 ```
 
-Without make, run `python3 -m unittest discover -s tests -v`. The last line should be `OK`.
+Without make: `python3 -m unittest discover -s tests -v`. Last line should be `OK`.
 
-### 3. Trace one sample with one command
+### 3. Trace one sample
 
 ```bash
 make run SAMPLE=zendesk
@@ -109,17 +307,17 @@ make run SAMPLE=figma
 make run SAMPLE=asana
 ```
 
-Each step prints one numbered line, labeled `[script]`, `[model]`, or `[person]` for who does that step.
+Each step prints one numbered line, labeled `[script]`, `[model]`, or `[person]`.
 
-- `zendesk` is the worked example: one follow-up round, then routed to the manager plus Security.
-- `figma` is a clean request: no follow-ups, routed to the manager only.
-- `asana` is the exception: the business owner is missing, so it is chased in round 1.
+- `zendesk`: Worked example (one follow-up round, manager + Security, approved with conditions)
+- `figma`: Clean request (no follow-ups, manager only, approved)
+- `asana`: Exception (missing business owner, chased in round 1)
 
-`make run` is always a dry run: no network and no key. Its ticket and audit files go to temp folders, printed in steps 3 and 8.
+`make run` is always a dry run: no network, no key. Temp folders printed in steps 3 and 8.
 
-### 4. Step by step on one request
+### 4. Step by step
 
-These commands write to `tickets/`, `packs/`, and `runs/`, which git ignores.
+These write to `tickets/`, `packs/`, and `runs/` (git-ignored).
 
 ```bash
 python3 -m scripts.ticket zendesk
@@ -128,252 +326,105 @@ python3 -m scripts.fetch_pack --ticket VR-0001 --reply-file <saved reply>
 python3 -m scripts.status --ticket VR-0001
 ```
 
-1. `scripts.ticket` writes `tickets/VR-0001.json`.
-2. `scripts.launch_research` prints the Cursor API request it would send (dry run).
-3. `scripts.fetch_pack` pulls the pack out of the research agent's final reply into `packs/VR-0001/`. It writes the pack back to the ticket only if the pack check passes.
-4. `scripts.status` prints the status from the ticket and `runs/VR-0001/audit.csv`.
+1. `scripts.ticket` writes `tickets/VR-0001.json`
+2. `scripts.launch_research` prints Cursor API request (dry run)
+3. `scripts.fetch_pack` pulls pack from agent reply into `packs/VR-0001/`, writes to ticket if pack check passes
+4. `scripts.status` prints status from ticket and `runs/VR-0001/audit.csv`
 
-### 5. Approvals, close-out, nudges and digest
-
-These commands also use `tickets/` and `runs/`.
+### 5. Approvals, close-out, maintenance
 
 ```bash
 python3 -m scripts.request_approvals --ticket VR-0001
-python3 -m scripts.record_approval --ticket VR-0001 --role manager --name "<approver name>" --decision approved --quote "<their exact words>"
+python3 -m scripts.record_approval --ticket VR-0001 --role manager --name "<name>" --decision approved --quote "<exact words>"
 python3 -m scripts.ticket --close VR-0001
 python3 -m scripts.stale_check [--record]
 python3 -m scripts.digest
 ```
 
-1. `scripts.request_approvals` routes the ticket and records when each approval request went out.
-2. `scripts.record_approval` only records a decision that a named person already gave in their own words. The bot never picks the name or the decision. `--decision` is `approved`, `approved_with_conditions` or `rejected`. Repeat `--condition` for each condition.
-3. `scripts.ticket --close` records the final decision once every approver has decided.
-4. `scripts.stale_check` lists waiting approvals that are due a nudge. Silence is never a yes. `--record` writes each nudge to the ticket and the audit log.
-5. `scripts.digest` prints the daily Ops digest of every open request.
+1. `scripts.request_approvals` routes ticket, records when each request went out
+2. `scripts.record_approval` only records decision a named person already gave. `--decision` is `approved`, `approved_with_conditions`, or `rejected`. Repeat `--condition` for each condition.
+3. `scripts.ticket --close` records final decision once every approver decided
+4. `scripts.stale_check` lists approvals due a nudge. Silence ≠ yes. `--record` writes nudges to ticket and audit log.
+5. `scripts.digest` prints daily Ops digest of every open request
 
-Add `--help` to any command to see all its options and examples.
+Add `--help` to any command for options and examples.
 
 ### Dry run vs live
 
-Dry run is the default everywhere. `--live` is the only way to spend money. The key comes only from the `CURSOR_API_KEY` environment variable, never from a file or a flag.
+Dry run is default everywhere. `--live` is the only way to spend money. Key comes only from `CURSOR_API_KEY` environment variable, never from file or flag.
 
 ```bash
 python3 -m scripts.launch_research --ticket VR-0001 --live
 python3 -m scripts.fetch_pack --ticket VR-0001 --live
 ```
 
-Run `launch_research --live`, wait for the agent, then run `fetch_pack --live`. If `fetch_pack` exits with code 3, the agent is still running; run it again later.
+Run `launch_research --live`, wait for agent, then run `fetch_pack --live`. If `fetch_pack` exits code 3, agent still running; run again later.
 
 ### Research completion webhook
 
-When a research agent stops, a webhook notifies the vendor bot so it wakes immediately instead of waiting for the 5-minute polling check. The hook runs automatically via `.cursor/hooks.json`.
+When research agent stops, webhook notifies vendor bot immediately instead of waiting for 5-minute polling check. Hook runs automatically via `.cursor/hooks.json`.
 
 Set these environment variables as Cursor cloud agent secrets:
 
-- `ACME_WEBHOOK_URL`: The webhook endpoint URL
-- `ACME_WEBHOOK_SECRET`: The secret key sent in the webhook header
-- `ACME_WEBHOOK_KEY_HEADER` (optional): The header name for the secret (default: `X-Webhook-Key`)
+- `ACME_WEBHOOK_URL`: Webhook endpoint URL
+- `ACME_WEBHOOK_SECRET`: Secret key sent in webhook header
+- `ACME_WEBHOOK_KEY_HEADER` (optional): Header name for secret (default: `X-Webhook-Key`)
 
-The webhook POSTs JSON with only `{"ticket_id": "VR-0001", "status": "completed"}` and never sends pack contents. The hook always exits successfully and never fails the agent run. If the URL or secret is not set, the hook does nothing. The 5-minute polling check remains as the fallback.
+Webhook POSTs JSON: `{"ticket_id": "VR-0001", "status": "completed"}`. Never sends pack contents. Hook always exits successfully, never fails agent run. If URL or secret not set, hook does nothing. 5-minute polling remains as fallback.
 
-### Other make targets
+### Live flags
 
-```bash
-make validate SAMPLE=<name>
-make route SAMPLE=<name>
-make research TICKET=<id>
-make status TICKET=<id>
-make audit TICKET=<id>
-make clean
-```
+**Intake and routing:** Always live (local scripts, no API calls).
 
-### Folder layout
+**Research:** `--live` required for Cursor API calls (costs money).
 
-```
-acme-vendor-onboarding/
-├── scripts/          # Python scripts (intake check, follow-up, ticket, routing, approvals, audit, status, Cursor API)
-├── tests/            # Unit tests run by make test
-├── data/samples/     # Sample vendor requests (synthesized) with expected outputs
-├── templates/        # Research pack template
-├── config/           # Approval settings (nudge after N hours)
-├── tickets/          # One ticket file per request (output, git-ignored)
-├── packs/            # Research packs (output, git-ignored)
-├── runs/             # Audit logs and agent run files (output, git-ignored)
-├── .cursor/rules/    # Cursor rules (data boundaries, intake, research checklist, approval, status/audit, git)
-├── .cursor/skills/   # Skills (validate-intake, build-research-pack)
-├── Makefile          # make setup, test, run, and the targets above
-└── README.md         # This file
-```
+**Approvals in bot:** Live (real people respond). In `make run`: mocked (pre-set replies in samples).
 
 ---
 
-## What's Live, Mocked, or Synthesized
+## Tradeoffs and Next Steps
 
-| Component               | Status      | Notes                                                                 |
-|------------------------|-------------|-----------------------------------------------------------------------|
-| Grok Bot intake         | Live        | The Acme Vendors bot; `make run` replays the sample messages instead  |
-| Field validation        | Live        | Script, runs locally                                                  |
-| Follow-up picker        | Live        | Script, runs locally                                                  |
-| Research pack template  | Live        | `templates/research_pack.json`                                        |
-| Pack checker            | Live        | Script, runs locally                                                  |
-| Cloud agent (via API)   | Live        | Cursor API call with `--live`; dry run by default                     |
-| Public data sources     | Live        | Real vendor websites, trust pages, pricing (public only)              |
-| Sample requesters       | Synthesized | Fictional Acme requesters, managers, approvers, labeled [SYNTHESIZED] in `data/samples/` |
-| Sample vendors          | Mixed       | Real public companies (Zendesk, Figma, Asana); pilot details synthesized |
-| Zendesk research pack   | Public      | Hand-run from public vendor pages on Oct 8, 2026; kept as the expected pack in `data/samples/` |
-| Approval routing        | Live        | Script, runs locally                                                  |
-| Approval recorder       | Live        | Script, runs locally                                                  |
-| Audit log               | Live        | Script, runs locally                                                  |
-| Status generator        | Live        | Script, runs locally                                                  |
-| Manager approvals       | Mocked      | Pre-set `approver_replies` in `data/samples/`; real humans in production |
-| Security approvals      | Mocked      | Pre-set `approver_replies` in `data/samples/`; real Security team in production |
+### Tradeoffs
 
----
+**Condition tracking before start date**
+- Current: Conditions recorded in ticket and audit log, presented to requester as checklist
+- Bot does not track completion of conditions or block start date if incomplete
+- Next: Add condition status field (`pending`, `complete`, `waived`) and workflow to mark each complete before start date
 
-## Assumptions
+**JSON tickets vs Jira/ServiceNow**
+- Current: Local JSON files in `tickets/` (git-ignored), no external system integration
+- Works for demo and pilot, but Ops likely wants one place for all vendor requests
+- Next: Connect to Jira or ServiceNow as system of record, scripts read/write tickets there
 
-These assumptions are baked into the current design and should be validated with Maya:
+**Key rotation**
+- Current: `CURSOR_API_KEY` lives in environment variable as Cursor cloud agent secret
+- No rotation policy, no expiration tracking
+- Next: Rotate key every 90 days, store rotation date in config, alert when expiring
 
-1. **Public research is enough for pilot decisions**
-   - The research pack uses only public sources (website, trust page, pricing)
-   - Private security assessments or detailed compliance docs are not part of this automated flow
+**Pilot cost estimates**
+- Current: Hand-calculated from public pricing (labeled `[ASSUMPTION]`)
+- No budget approval gate before routing to manager
+- Next: Add budget threshold (e.g. pilots > $5k need Finance approval before manager)
 
-2. **Five fields are sufficient for intake**
-   - Vendor legal name, website, customer data flag, business owner, target start date
-   - Other fields (budget, contract term, renewal terms) are handled separately
+**Duplicate vendor detection**
+- Current: Each request treated independently, no check for existing pilot or active contract
+- Risk: Two teams pilot same vendor concurrently, duplicate spend
+- Next: Check `tickets/` for open or approved requests for same vendor, flag to Ops
 
-3. **Manager approval is always required**
-   - Every vendor, regardless of size or risk, needs manager sign-off
-   - No auto-approval for low-risk or repeat vendors
+**Email notifications**
+- Current: All communication in bot, no email integration
+- Approvers must check bot for new requests, no external reminder
+- Next: Optional email notification when routed, but keep approvals in bot (not via email reply)
 
-4. **Security approval threshold is binary**
-   - "Will this vendor touch customer data?" is a yes/no question
-   - More granular risk tiers (PII, financial data, logs) are not distinguished in this flow
+### Next Steps
 
-5. **Approval must be explicit**
-   - Silence never counts as approval
-   - Approvers must respond with a named decision
-
-6. **Cycle time is measured in days**
-   - "Days open" is the key metric
-   - Hour-level or minute-level SLAs are not tracked
-
-7. **Status visibility is self-service**
-   - Requesters and approvers can ask the bot for status anytime
-   - No email notifications or dashboard required for this version
-
-8. **One request per vendor at a time**
-   - The system does not handle multiple concurrent pilots for the same vendor
-   - Duplicate detection or conflict resolution is out of scope
-
-9. **Audit log captures cost**
-   - Each step logs the cost of API calls and model usage
-   - Cost tracking supports future optimization and budget accountability
-
-10. **The bot does not send email**
-    - All communication happens within the bot interface
-    - Email integration is intentionally excluded to avoid expanding the scope
-
----
-
-## Questions for Maya
-
-Before finalizing the design and building the full workflow, we should clarify:
-
-1. **Research scope**
-   - Is public information (website, trust page, pricing) sufficient for pilot approval decisions?
-   - Are there specific sections or details we should always look for on a trust page (e.g., SOC 2, ISO 27001, data residency)?
-   - What should we do if a vendor has no public trust page or pricing?
-
-2. **Approval routing**
-   - Is "touches customer data" the right trigger for Security involvement, or are there other risk factors (PII, financial data, API access)?
-   - Should Finance or Legal ever be in the approval path, or is it always Manager + Security (conditional)?
-   - Can a manager delegate approval authority to another person, or must it be the named manager?
-
-3. **Exception handling**
-   - If a vendor is missing critical public info (e.g., no trust page), does the request automatically get escalated, or does the manager decide?
-   - What happens if an approver rejects a request — does it go back to the requester, or is it closed immediately?
-   - Should the bot nudge stale approvals, and if so, how often (daily? every 2 days?)?
-
-4. **Status and reporting**
-   - Who needs to see the daily Ops digest (just Ops, or also managers)?
-   - Are "days open" and "exception count" the right metrics, or should we track something else (e.g., requests approved per week)?
-   - Should status show requester name and business owner, or is that too detailed for a summary view?
-
-5. **Data and vendors**
-   - Do you have a list of pre-approved vendors (e.g., major SaaS tools) that could skip some research, or does every vendor go through the full flow?
-   - Should we track repeat vendors (same vendor, different pilot or renewal), or treat each request as independent?
-
-6. **Bot interaction**
-   - Should the bot confirm the research pack with the requester before sending it to approvers, or send it directly?
-   - Can a requester update fields (e.g., change the business owner) after the pack is built, or must they start a new request?
-
-7. **Audit and compliance**
-   - Who needs access to the audit log, and in what format (CSV, dashboard, API)?
-   - How long should audit records be retained (90 days, 1 year, indefinitely)?
-
-8. **Pilot vs. production vendor onboarding**
-   - Is this workflow only for pilots, or should it eventually handle full production vendor onboarding?
-   - Are there different approval requirements for pilots vs. production?
-
----
-
-## Owners (Proposed)
-
-Each component of this solution has a proposed owner at Acme. These are recommendations based on typical responsibilities and should be validated with leadership.
-
-| Component                     | Proposed Owner  | Rationale                                                                 |
-|------------------------------|----------------|---------------------------------------------------------------------------|
-| **Grok Bot (front door)**     | Ops            | Ops owns vendor onboarding and is the primary user; they steer the bot    |
-| **Intake validation script**  | Ops            | Business logic for required fields; Ops knows what's needed               |
-| **Research pack template**    | Ops            | Defines what "enough research" means; Ops reviews the packs               |
-| **Cloud agent orchestration** | Engineering    | Cursor API integration and agent config; technical ownership              |
-| **Approval routing logic**    | Ops            | Business rules for manager/Security routing; Ops owns the process         |
-| **Security approval rules**   | Security       | Defines when Security must approve and what they review                   |
-| **Audit log and compliance**  | Security       | Audit trail and data boundaries are security concerns                     |
-| **Status and reporting**      | Ops            | Ops needs visibility into cycle time, exceptions, and workload            |
-| **Cursor rules (data, git)**  | Engineering    | Technical guardrails and development workflow                             |
-| **Cost tracking**             | Engineering    | API usage and model cost are engineering metrics                          |
-| **Bot skills and tools**      | Engineering    | Bot capabilities and integrations are engineering work                    |
-
-### Ownership Notes
-
-- **Ops** is the primary business owner and the main user of the system. They define what "done" looks like, what research is sufficient, and how approvals should flow.
-- **Security** defines the approval policy for customer data and owns the audit trail. They should review the data boundaries and approval logic.
-- **Engineering** builds and maintains the technical components (scripts, Cursor API integration, bot tools) and ensures the system is reliable and cost-effective.
-
-### Cross-functional collaboration points
-
-- **Ops + Security**: Agree on when Security approval is required and what they review
-- **Ops + Engineering**: Define the research checklist and translate it into bot/agent logic
-- **Security + Engineering**: Validate data boundaries and audit logging
-- **All three**: Review cycle time metrics, exceptions, and cost to ensure the workflow meets goals
-
----
-
-## Stack and Structure
-
-**Language**: Python 3 (standard library only, no external dependencies)
-
-**Why Python 3 standard library**:
-- Minimal dependencies: No need for pip installs, virtual environments, or version conflicts
-- Simple to run: Scripts execute directly with `python3 script.py`
-- Easy to read: Standard library modules (json, csv, datetime, pathlib) are widely known
-- Fast to iterate: No build step, no package management, just code and run
-
-**Project Layout**:
-```
-acme-vendor-onboarding/
-├── scripts/          # Python scripts (validation, routing, audit, status)
-├── data/samples/     # Sample vendor requests (synthesized data)
-├── packs/            # Generated research packs (output, not committed)
-├── runs/             # Cloud agent run logs (output, not committed)
-├── .cursor/rules/    # Cursor rules (data boundaries, intake, research checklist, approval, status/audit, git)
-├── .gitignore        # Ignore packs/, runs/, Python cache
-├── AGENTS.md         # Agent guidelines (git workflow, data boundaries)
-├── README.md         # This file
-└── Makefile          # (Planned) Simple commands to run validation, routing, status
-```
+1. **Validate with Maya:** Confirm five fields sufficient, research checklist complete, approval routing correct
+2. **Run live pilot:** Pick 3-5 real vendor requests, run with `--live` flag, track cycle time and exceptions
+3. **Connect Jira/ServiceNow:** Replace JSON tickets with external system integration
+4. **Add condition tracking:** Mark conditions complete before start date
+5. **Rotate API key:** Set 90-day rotation policy, add expiration alert
+6. **Budget approval gate:** Route pilots > $5k to Finance before manager
+7. **Duplicate detection:** Check for existing vendor pilots before creating new request
 
 ---
 
@@ -381,7 +432,7 @@ acme-vendor-onboarding/
 
 See `.cursor/rules/git-workflow.mdc` and `AGENTS.md` for full details.
 
-**Summary**:
+**Summary:**
 - Work on a new branch for every change
 - Open a pull request for Matt to review
 - Never commit or push directly to `main`
