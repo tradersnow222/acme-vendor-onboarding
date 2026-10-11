@@ -6,3 +6,9 @@ alwaysApply: true
 # Pull request style
 
 Pull request guidance is provided by the pstack plugin: https://github.com/cursor/plugins/tree/main/pstack
+
+Repo-specific house rules:
+- **Title:** plain words that say what changed. No "N of M" numbering and no `type(scope):` prefix.
+- **Open it ready for review**, not as a draft.
+- **Body:** under about 200 words.
+- Refer to other pull requests by number (#3), not by their place in a plan.
