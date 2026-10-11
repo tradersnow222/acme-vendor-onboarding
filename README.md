@@ -44,6 +44,14 @@ Governed workflow for vendor onboarding: intake → research pack → approval r
 - "Can we automate the research without touching private data?"
 - "How do we track cost and prevent runaway API spend?"
 
+### Owners
+
+| Role | Owner | Notes |
+|------|-------|-------|
+| **Ops** | Maya Chen [SYNTHESIZED] | Staff Ops; owns vendor onboarding process |
+| **Security** | Lena Hoffmann [SYNTHESIZED] | Security & GRC Lead; approves when vendor touches customer data |
+| **Eng** | Matt Snow | Repository owner; maintains automation |
+
 ---
 
 ## Architecture
@@ -60,11 +68,12 @@ flowchart TD
     B -.->|5-min fallback| H[scripts/fetch_pack.py<br/>SCRIPT]
     H -->|check pack| I[scripts/check_pack.py<br/>SCRIPT]
     I -->|route| J[scripts/route.py<br/>SCRIPT]
-    J -->|notify| K[Manager PERSON<br/>Security PERSON]
-    K -->|reply| B
-    B -->|record| L[scripts/record_approval.py<br/>SCRIPT]
-    L -->|close| M[scripts/ticket.py --close<br/>SCRIPT]
-    M --> N[Status & Audit<br/>SCRIPT]
+    J -->|request| K[scripts/request_approvals.py<br/>SCRIPT]
+    K -->|notify| L[Manager PERSON<br/>Security PERSON]
+    L -->|reply| B
+    B -->|record| M[scripts/record_approval.py<br/>SCRIPT]
+    M -->|close| N[scripts/ticket.py --close<br/>SCRIPT]
+    N --> O[Status & Audit<br/>SCRIPT]
     
     style A fill:#e1f5ff
     style B fill:#fff4e6
@@ -76,10 +85,11 @@ flowchart TD
     style H fill:#e8f5e9
     style I fill:#e8f5e9
     style J fill:#e8f5e9
-    style K fill:#fce4ec
-    style L fill:#e8f5e9
+    style K fill:#e8f5e9
+    style L fill:#fce4ec
     style M fill:#e8f5e9
     style N fill:#e8f5e9
+    style O fill:#e8f5e9
 ```
 
 **Label Legend:** SCRIPT = script runs locally | MODEL = cloud agent or bot | PERSON = human checkpoint
@@ -131,27 +141,26 @@ The bot **CANNOT**:
 - Fill in approver name or decision on someone's behalf
 - Send email outside the bot interface
 - Touch private data or vendor portals
-- Run research without `--live` flag (dry run by default)
+- Run live research (research is a dry run unless --live)
 
 ### Guardrails (Four Layers)
 
 **1. Impossible (technical blocks)**
 - Bot has no email integration (cannot send external email)
 - Bot has no write access to private data sources
-- Cloud agent can only fetch public URLs (no logins, no gated portals)
 - Approval decisions stored with hash of intake + pack; changes invalidate approval
 
 **2. Check (script validation before action)**
 - `scripts/intake_check.py` validates all five fields before routing
 - `scripts/check_pack.py` validates R1, R3, R4, R10 present and every row has source URL
 - `scripts/route.py` gates on intake complete + pack complete + business owner is named person
-- `scripts/check_pack.py` cross-checks intake `touches_customer_data` vs pack R3
+- `scripts/route.py` cross-checks intake `touches_customer_data` vs pack R3 (mismatch routes to Security)
 
 **3. Rule (documented policy in `.cursor/rules/`)**
 - `intake-policy.mdc`: Five fields, valid values, max 2 follow-up rounds
 - `research-checklist.mdc`: R1-R11 items, must-haves, public sources only
 - `approval-policy.mdc`: Manager always, Security when customer data, silence never counts
-- `data-boundaries.mdc`: Public sources only, no NDA content, no API keys in repo
+- `data-boundaries.mdc`: Public sources only, no NDA content, no API keys in repo, cloud agent public URLs only
 
 **4. Person (human decision point)**
 - Requester confirms vendor and pilot details before research launches
@@ -223,34 +232,28 @@ The bot reads the rules to word follow-up questions and pack summaries. The scri
 
 ## Real Run: VR-0010 RevenueCat
 
-Request received **2026-10-11 10:37 PT**, closed **2026-10-11 10:45 PT** (8 minutes).
+Request opened **2026-10-11 10:37:41 PT**, closed **10:45:00 PT** (~7 minutes).
 
-**Requester:** Jordan Lee [SYNTHESIZED], Growth Product Manager  
-**Vendor:** RevenueCat (revenuecat.com) – in-app subscription platform  
-**Pilot:** 90 days, iOS app integration  
-**Customer data:** Yes (purchase history, subscriber IDs, device IDs)
+**Requester:** Matt Snow [SYNTHESIZED], Support Lead  
+**Vendor:** RevenueCat  
 
-**Intake:** Complete in one round (no follow-ups needed).
+**Intake:** Complete (no follow-ups).
 
-**Research pack:** Built via cloud agent in 4 minutes. All must-haves found (R1, R3, R4, R10). Two "not found" items: R5 (SOC 2 report access) and R7 (data residency options).
+**Research pack:** Built via cloud agent 10:37:50–10:41:29 (~3.5 minutes). Pack check: **PASS** (12 rows, 0 not found).
 
 **Routing:** Manager + Security (customer data = yes).
 
 **Approvals:**
-- Manager (Alex Rivera [SYNTHESIZED], VP Product): approved, 2026-10-11 10:42 PT
-- Security (Lena Hoffmann [SYNTHESIZED], Security & GRC Lead): approved with conditions, 2026-10-11 10:45 PT
-  - Conditions: "DPA signed before integration" and "Request SOC 2 Type II report under NDA before production use"
+- **Daniel Okafor** [SYNTHESIZED], Director of Customer Support: **approved_with_conditions**, 2026-10-11 10:44 PT  
+  - Condition: "AI sub-processors (OpenAI, Anthropic) reviewed before customer data goes in"
+- **Lena Hoffmann** [SYNTHESIZED], Security & GRC Lead: **approved_with_conditions**, 2026-10-11 10:45 PT  
+  - Condition: "Need to review subprocessors first"
 
-**Audit log** (`runs/VR-0010/audit.csv`) **actor_type column**:
-- 1 person (requester)
-- 10 script (intake, follow-up, ticket, fetch, check, route, record × 2, close, status)
-- 4 model (cloud agent research)
-- 2 person (manager + Security approvals)
-
-**Both conditions** recorded in ticket and audit log, carried forward to requester as checklist.
+**Audit log** (`runs/VR-0010/audit.csv`):
+- 7 rows total: 4 script, 1 model, 2 person
 
 **Days open:** 0.0 (same day).  
-**Exceptions:** 2 (two "not found" pack rows: R5, R7).
+**Exceptions:** 0.
 
 ---
 
