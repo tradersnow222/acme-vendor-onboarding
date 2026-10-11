@@ -4,49 +4,43 @@ Governed workflow for vendor onboarding: intake → research pack → approval r
 
 ---
 
-## The Problem
+## The 5-minute version
 
-**Maya Chen (Staff Ops, Acme)** owns vendor onboarding. Current process takes 1-2 weeks. Leadership wants 1-2 days with clear audit trails.
+**Problem:** Maya Chen (Staff Ops) owns vendor onboarding. Current process takes 1-2 weeks (messy intake, manual research, late approvals). Leadership wants 1-2 days with clear audit trails.
 
-### Four Friction Points
+**Who cares about what:** Security cares about what agents can touch, LOB leaders care about cycle time and exception rate, and eng cares about integrations and ownership.
 
-**1. Messy intake**
-- Email or ticket: "Onboard Vendor X for a 90-day pilot"
-- Five required fields often incomplete: vendor legal name, website, customer data flag, business owner, target start date
-- Ops chases missing fields over days of back-and-forth
+<details><summary>Who owns what</summary>
 
-**2. Manual research copy/paste**
-- Ops manually gathers public vendor info (website, security page, pricing) into shared doc
-- No standard template or checklist
-- Inconsistent and time-consuming
+| Role | Owner | Notes |
+|------|-------|-------|
+| **Ops** | Maya Chen [SYNTHESIZED] | Staff Ops; owns vendor onboarding process |
+| **Security** | Lena Hoffmann [SYNTHESIZED] | Security & GRC Lead; approves when vendor touches customer data |
+| **Eng** | Eng [SYNTHESIZED] | Repository owner; maintains automation |
 
-**3. Late and unclear approvals**
-- Manager reviews whenever they notice the thread (no proactive routing)
-- Security pinged late, only if vendor touches customer data
-- No single status view
-- No audit trail
+</details>
 
-**4. Cycle time too long**
-- End-to-end typically 1-2 weeks
-- Leadership wants 1-2 days with clear records
+**Flow:**
 
-### Concerns by Role
+```mermaid
+flowchart LR
+    A[Requester] --> B[Grok Bot<br/>MODEL]
+    B --> C[Research agent<br/>MODEL]
+    C --> D[Manager + Security<br/>PERSON]
+    D --> E[Recorded decision<br/>SCRIPT]
+    E --> F[Status & digest<br/>SCRIPT]
+    
+    style A fill:#e1f5ff
+    style B fill:#fff3e0
+    style C fill:#fff3e0
+    style D fill:#fce4ec
+    style E fill:#e8f5e9
+    style F fill:#e8f5e9
+```
 
-**Line of Business (LOB)**
-- "How do I check status without hunting through email?"
-- "Why does it take a week to get approval for a standard tool?"
+SCRIPT = code decides, MODEL = AI, PERSON = human decides
 
-**Security**
-- "I need to see what data the vendor would hold before I approve"
-- "Where's the audit trail showing who checked what and when?"
-
-**Engineering**
-- "Can we automate the research without touching private data?"
-- "How do we track cost and prevent runaway API spend?"
-
----
-
-## Architecture
+<details><summary>How each step works</summary>
 
 ```mermaid
 flowchart TD
@@ -60,11 +54,12 @@ flowchart TD
     B -.->|5-min fallback| H[scripts/fetch_pack.py<br/>SCRIPT]
     H -->|check pack| I[scripts/check_pack.py<br/>SCRIPT]
     I -->|route| J[scripts/route.py<br/>SCRIPT]
-    J -->|notify| K[Manager PERSON<br/>Security PERSON]
-    K -->|reply| B
-    B -->|record| L[scripts/record_approval.py<br/>SCRIPT]
-    L -->|close| M[scripts/ticket.py --close<br/>SCRIPT]
-    M --> N[Status & Audit<br/>SCRIPT]
+    J -->|request| K[scripts/request_approvals.py<br/>SCRIPT]
+    K -->|notify| L[Manager PERSON<br/>Security PERSON]
+    L -->|reply| B
+    B -->|record| M[scripts/record_approval.py<br/>SCRIPT]
+    M -->|close| N[scripts/ticket.py --close<br/>SCRIPT]
+    N --> O[Status & Audit<br/>SCRIPT]
     
     style A fill:#e1f5ff
     style B fill:#fff4e6
@@ -76,19 +71,31 @@ flowchart TD
     style H fill:#e8f5e9
     style I fill:#e8f5e9
     style J fill:#e8f5e9
-    style K fill:#fce4ec
-    style L fill:#e8f5e9
+    style K fill:#e8f5e9
+    style L fill:#fce4ec
     style M fill:#e8f5e9
     style N fill:#e8f5e9
+    style O fill:#e8f5e9
 ```
 
 **Label Legend:** SCRIPT = script runs locally | MODEL = cloud agent or bot | PERSON = human checkpoint
 
----
+</details>
 
-## Bot Design
+**What happens:**
 
-Grok Bot (Acme Vendors) is the front door. Every action is backed by a script that enforces the rules. The bot words the question; the script decides what's missing.
+| You say | What runs | Who decides |
+|---------|-----------|-------------|
+| "Onboard Zendesk for 90-day pilot..." | Bot validates 5 fields (SCRIPT) | Requester answers follow-ups |
+| "Launch research" | Cloud agent fetches public pages (MODEL) | None (public sources only) |
+| (Pack ready) | Bot presents pack summary | Requester reviews |
+| (Route for approval) | Bot notifies manager + Security if customer data (SCRIPT) | Manager + Security approve/reject |
+| "Approved" or "Rejected" | Bot records decision with name + quote (SCRIPT) | None (recording only) |
+| "Close ticket" | Bot closes when all approvers decided (SCRIPT) | None |
+| "What's the status?" | Bot reads ticket + audit log (SCRIPT) | None |
+| (Silence from approver) | Bot nudges after configured hours (SCRIPT) | Ops reviews |
+
+<details><summary>All bot actions</summary>
 
 | User Action | Script Run | Actor | Human Checkpoint |
 |-------------|------------|-------|------------------|
@@ -115,7 +122,9 @@ Grok Bot (Acme Vendors) is the front door. Every action is backed by a script th
 | Bot nudges stale approvals (silence ≠ yes) | `scripts/stale_check.py` (configured hours) | SCRIPT | Approver gets reminder |
 | Bot sends daily digest to Ops | `scripts/digest.py` lists open requests | SCRIPT | Ops reviews exceptions |
 
-### Bot Prompt Rules (Key Constraints)
+</details>
+
+<details><summary>What the bot can and can't do</summary>
 
 The bot **CAN**:
 - Collect the five required intake fields
@@ -131,27 +140,34 @@ The bot **CANNOT**:
 - Fill in approver name or decision on someone's behalf
 - Send email outside the bot interface
 - Touch private data or vendor portals
-- Run research without `--live` flag (dry run by default)
+- Run live research (research is a dry run unless --live)
 
-### Guardrails (Four Layers)
+</details>
+
+**Guardrails:**
+- **Impossible:** Bot has no email, no private data access. Approvals stored with hash; changes invalidate.
+- **Check:** Scripts validate 5 fields, check pack (R1/R3/R4/R10 + source URLs), gate routing, cross-check intake vs R3.
+- **Rule:** `.cursor/rules/` define policy (5 fields, R1-R11, manager always + Security when customer data, public sources only).
+- **Person:** Requester confirms before research. Manager + Security approve in their own words. Ops reviews digest.
+
+<details><summary>Four-layer detail</summary>
 
 **1. Impossible (technical blocks)**
 - Bot has no email integration (cannot send external email)
 - Bot has no write access to private data sources
-- Cloud agent can only fetch public URLs (no logins, no gated portals)
 - Approval decisions stored with hash of intake + pack; changes invalidate approval
 
 **2. Check (script validation before action)**
 - `scripts/intake_check.py` validates all five fields before routing
 - `scripts/check_pack.py` validates R1, R3, R4, R10 present and every row has source URL
 - `scripts/route.py` gates on intake complete + pack complete + business owner is named person
-- `scripts/check_pack.py` cross-checks intake `touches_customer_data` vs pack R3
+- `scripts/route.py` cross-checks intake `touches_customer_data` vs pack R3 (mismatch routes to Security)
 
 **3. Rule (documented policy in `.cursor/rules/`)**
 - `intake-policy.mdc`: Five fields, valid values, max 2 follow-up rounds
 - `research-checklist.mdc`: R1-R11 items, must-haves, public sources only
 - `approval-policy.mdc`: Manager always, Security when customer data, silence never counts
-- `data-boundaries.mdc`: Public sources only, no NDA content, no API keys in repo
+- `data-boundaries.mdc`: Public sources only, no NDA content, no API keys in repo, cloud agent public URLs only
 
 **4. Person (human decision point)**
 - Requester confirms vendor and pilot details before research launches
@@ -159,102 +175,46 @@ The bot **CANNOT**:
 - Manager and Security approve or reject in their own words
 - Ops reviews daily digest (open requests, exceptions, days open)
 
----
+</details>
 
-## Build: Folder Layout
+**Proof (VR-0010 RevenueCat):** Opened 10:37:41 PT, closed 10:45:00 PT (~7 min). Requester: Matt Snow (demo requester, recorded as Support Lead). Pack: 10:37:50–10:41:29 (~3.5 min), check PASS (12 rows, 0 not found). Approvals: Daniel Okafor + Lena Hoffmann (both approved_with_conditions). Audit: 7 rows (4 script, 1 model, 2 person). Exceptions: 0.
 
-```
-acme-vendor-onboarding/
-├── scripts/                    # Python scripts (intake, routing, approvals, audit, status, Cursor API)
-│   ├── intake_check.py         # Validate five fields
-│   ├── followup.py             # Pick follow-up questions
-│   ├── ticket.py               # Create and close tickets
-│   ├── launch_research.py      # Launch cloud agent via Cursor API (dry run by default, --live flag)
-│   ├── fetch_pack.py           # Fetch pack from agent reply
-│   ├── check_pack.py           # Validate pack against checklist
-│   ├── route.py                # Route to manager + Security (conditional)
-│   ├── request_approvals.py    # Notify approvers
-│   ├── record_approval.py      # Record decision (name, decision, timestamp, quote)
-│   ├── status.py               # Generate status from ticket + audit
-│   ├── stale_check.py          # List approvals due a nudge
-│   ├── digest.py               # Daily Ops digest
-│   ├── notify_research_done.py # Webhook notification on agent stop
-│   └── run.py                  # Trace one sample through every step (make run)
-├── tests/                      # Unit tests (make test)
-├── data/samples/               # Sample vendor requests (synthesized)
-│   ├── vr-0001-zendesk.json    # Worked example (messy intake, one follow-up, manager + Security)
-│   ├── vr-0002-figma.json      # Clean request (no follow-ups, manager only)
-│   └── vr-0003-asana.json      # Exception (missing business owner)
-├── templates/                  # Research pack template
-│   └── research_pack.json      # R1-R11 items
-├── config/                     # Approval settings (nudge after N hours)
-├── tickets/                    # One JSON file per request (output, git-ignored)
-├── packs/                      # Research packs (output, git-ignored)
-├── runs/                       # Audit logs and agent run files (output, git-ignored)
-├── .cursor/
-│   ├── rules/                  # Cursor rules (8 files)
-│   │   ├── data-boundaries.mdc # Public sources only, no NDA, no secrets in repo
-│   │   ├── intake-policy.mdc   # Five fields, valid values, max 2 follow-ups
-│   │   ├── research-checklist.mdc # R1-R11 items, must-haves, source URLs required
-│   │   ├── approval-policy.mdc # Manager always, Security conditional, silence ≠ yes
-│   │   ├── status-and-audit.mdc # Days open, exception count, audit log format
-│   │   ├── git-workflow.mdc    # Branch + PR policy, commit hygiene
-│   │   ├── pr-style.mdc        # Plain title, ready for review, under 200 words
-│   │   └── verification.mdc    # Tests call scripts on samples, assert expected values
-│   ├── skills/                 # Skills (3)
-│   │   ├── validate-intake/    # Check five fields, pick follow-ups
-│   │   ├── build-research-pack/ # Gather R1-R11 from public sources
-│   │   └── verify-acme/        # Verify sample data is [SYNTHESIZED] or [PUBLIC]
-│   └── hooks.json              # Stop hook → notify_research_done.py
-├── Makefile                    # make setup, test, run, validate, route, status, audit, clean
-├── AGENTS.md                   # Agent guidelines (git workflow, data boundaries, approval policy)
-└── README.md                   # This file
-```
+<details><summary>Full VR-0010 timeline</summary>
 
-### Rules vs Scripts
+Request opened **2026-10-11 10:37:41 PT**, closed **10:45:00 PT** (~7 minutes).
 
-**Rules explain policy** (`.cursor/rules/*.mdc`): five required fields, what counts as valid, who must approve, what "enough research" means, data boundaries.
+**Requester:** Matt Snow (demo requester, recorded as Support Lead)  
+**Vendor:** RevenueCat  
 
-**Scripts enforce the rules** (`scripts/*.py`): validate intake, check pack, route approvals, record decisions, generate audit log.
+**Intake:** passed (5 fields).
 
-The bot reads the rules to word follow-up questions and pack summaries. The scripts are the source of truth for validation and routing.
-
----
-
-## Real Run: VR-0010 RevenueCat
-
-Request received **2026-10-11 10:37 PT**, closed **2026-10-11 10:45 PT** (8 minutes).
-
-**Requester:** Jordan Lee [SYNTHESIZED], Growth Product Manager  
-**Vendor:** RevenueCat (revenuecat.com) – in-app subscription platform  
-**Pilot:** 90 days, iOS app integration  
-**Customer data:** Yes (purchase history, subscriber IDs, device IDs)
-
-**Intake:** Complete in one round (no follow-ups needed).
-
-**Research pack:** Built via cloud agent in 4 minutes. All must-haves found (R1, R3, R4, R10). Two "not found" items: R5 (SOC 2 report access) and R7 (data residency options).
+**Research pack:** Built via cloud agent 10:37:50–10:41:29 (~3.5 minutes). Pack check: **PASS** (12 rows, 0 not found).
 
 **Routing:** Manager + Security (customer data = yes).
 
 **Approvals:**
-- Manager (Alex Rivera [SYNTHESIZED], VP Product): approved, 2026-10-11 10:42 PT
-- Security (Lena Hoffmann [SYNTHESIZED], Security & GRC Lead): approved with conditions, 2026-10-11 10:45 PT
-  - Conditions: "DPA signed before integration" and "Request SOC 2 Type II report under NDA before production use"
+- **Daniel Okafor** [SYNTHESIZED], Director of Customer Support: **approved_with_conditions**, 2026-10-11 10:44 PT  
+  - Condition: "AI sub-processors (OpenAI, Anthropic) reviewed before customer data goes in"
+- **Lena Hoffmann** [SYNTHESIZED], Security & GRC Lead: **approved_with_conditions**, 2026-10-11 10:45 PT  
+  - Condition: "Need to review subprocessors first"
 
-**Audit log** (`runs/VR-0010/audit.csv`) **actor_type column**:
-- 1 person (requester)
-- 10 script (intake, follow-up, ticket, fetch, check, route, record × 2, close, status)
-- 4 model (cloud agent research)
-- 2 person (manager + Security approvals)
-
-**Both conditions** recorded in ticket and audit log, carried forward to requester as checklist.
+**Audit log** (`runs/VR-0010/audit.csv`):
+- 7 rows total: 4 script, 1 model, 2 person
 
 **Days open:** 0.0 (same day).  
-**Exceptions:** 2 (two "not found" pack rows: R5, R7).
+**Exceptions:** 0.
 
----
+</details>
 
-## Mocked vs Synthesized vs Live
+**Mocked / Synthesized / Live:**
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Bot, scripts, cloud agent** | Live | Real Grok Bot, local Python scripts, Cursor API (`--live` flag) |
+| **Sample requesters, approvers, pilot details** | Synthesized | Fictional Acme people labeled `[SYNTHESIZED]` in `data/samples/` |
+| **Vendor websites, public pricing, trust pages** | Live | Real public pages (Zendesk, Figma, Asana, RevenueCat) |
+
+<details><summary>Complete component status</summary>
 
 | Component | Status | Notes |
 |-----------|--------|-------|
@@ -277,9 +237,46 @@ Request received **2026-10-11 10:37 PT**, closed **2026-10-11 10:45 PT** (8 minu
 | **Security approvals in bot** | Live | Real Security team in production; played by Matt in demo |
 | **Approvals in `make run`** | Mocked | Pre-set `approver_replies` in `data/samples/` |
 
+</details>
+
 ---
 
-## How to Run
+## Reference
+
+<details><summary>Folder Layout</summary>
+
+```
+acme-vendor-onboarding/
+├── scripts/                    # Python scripts (intake, routing, approvals, audit, status, Cursor API)
+├── tests/                      # Unit tests (make test)
+├── data/samples/               # Sample vendor requests (synthesized)
+├── templates/                  # Research pack template
+├── config/                     # Approval settings (nudge after N hours)
+├── tickets/                    # One JSON file per request (output, git-ignored)
+├── packs/                      # Research packs (output, git-ignored)
+├── runs/                       # Audit logs and agent run files (output, git-ignored)
+├── .cursor/
+│   ├── rules/                  # Cursor rules (8 files)
+│   ├── skills/                 # Skills (3)
+│   └── hooks.json              # Stop hook → notify_research_done.py
+├── Makefile                    # make setup, test, run, validate, route, status, audit, clean
+├── AGENTS.md                   # Agent guidelines (git workflow, data boundaries, approval policy)
+└── README.md                   # This file
+```
+
+</details>
+
+<details><summary>Rules vs Scripts</summary>
+
+**Rules explain policy** (`.cursor/rules/*.mdc`): five required fields, what counts as valid, who must approve, what "enough research" means, data boundaries.
+
+**Scripts enforce the rules** (`scripts/*.py`): validate intake, check pack, route approvals, record decisions, generate audit log.
+
+The bot reads the rules to word follow-up questions and pack summaries. The scripts are the source of truth for validation and routing.
+
+</details>
+
+<details><summary>How to Run</summary>
 
 Python 3.9 or newer. No pip installs. Run every command from repo root.
 
@@ -380,6 +377,22 @@ Webhook POSTs JSON: `{"ticket_id": "VR-0001", "status": "completed"}`. Never sen
 
 **Approvals in bot:** Live (real people respond). In `make run`: mocked (pre-set replies in samples).
 
+</details>
+
+<details><summary>Development Workflow</summary>
+
+See `.cursor/rules/git-workflow.mdc` and `AGENTS.md` for full details.
+
+**Summary:**
+- Work on a new branch for every change
+- Open a pull request for Matt to review
+- Never commit or push directly to `main`
+- Never merge your own pull request
+- Never force-push
+- Write small, focused commits with clear messages explaining **why**
+
+</details>
+
 ---
 
 ## Tradeoffs and Next Steps
@@ -425,20 +438,6 @@ Webhook POSTs JSON: `{"ticket_id": "VR-0001", "status": "completed"}`. Never sen
 5. **Rotate API key:** Set 90-day rotation policy, add expiration alert
 6. **Budget approval gate:** Route pilots > $5k to Finance before manager
 7. **Duplicate detection:** Check for existing vendor pilots before creating new request
-
----
-
-## Development Workflow
-
-See `.cursor/rules/git-workflow.mdc` and `AGENTS.md` for full details.
-
-**Summary:**
-- Work on a new branch for every change
-- Open a pull request for Matt to review
-- Never commit or push directly to `main`
-- Never merge your own pull request
-- Never force-push
-- Write small, focused commits with clear messages explaining **why**
 
 ---
 
