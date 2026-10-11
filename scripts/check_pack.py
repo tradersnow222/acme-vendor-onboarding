@@ -2,6 +2,7 @@ import csv
 import re
 import sys
 from datetime import date
+from pathlib import Path
 
 from scripts.samples import load_sample
 
@@ -30,7 +31,7 @@ def check_pack(rows, fetch_log=None):
     reasons = []
     seen = set()
     found = set()
-    fetched_ok = None if fetch_log is None else _fetched_ok(fetch_log)
+    fetched_ok = _fetched_ok(fetch_log) if fetch_log and Path(fetch_log).is_file() else None
     for row in rows:
         row_id = row.get("id")
         item = _item(row_id)
@@ -64,7 +65,7 @@ def main(argv):
         return 2
     sample = load_sample(argv[0])
     rows = sample["expected"]["pack"]["rows"] or []
-    result = check_pack(rows)
+    result = check_pack(rows, sample_fetch_log(sample["request_id"]))
     verdict = "PASS" if result["passed"] else "FAIL"
     print(f"{sample['request_id']} {argv[0]}: {verdict} ({len(rows)} rows, {result['not_found']} not_found)")
     for reason in result["reasons"]:

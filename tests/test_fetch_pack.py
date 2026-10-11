@@ -20,11 +20,14 @@ FAKE_KEY = "fake-key-not-real-123"
 AGENT_URL = "https://api.cursor.com/v1/agents/bc-fake-0001"
 RUN_URL = "https://api.cursor.com/v1/agents/bc-fake-0001/runs/run-fake-0001"
 PASS_LINE = "VR-0001: pack check PASS (14 rows, 2 not_found); ticket updated\n"
-FETCH_LOG = "url,http_status,fetched_at\nhttps://www.zendesk.com/trust-center/,200,2026-10-08T09:00:00Z\n"
+ZENDESK_URLS = dict.fromkeys(url for row in load_sample("zendesk")["expected"]["pack"]["rows"] for url in row["source_urls"])
+FETCH_LOG = "url,http_status,fetched_at\n" + "".join(f"{url},200,2026-10-08T09:00:00Z\n" for url in ZENDESK_URLS)
+MSA_URL = "https://www.zendesk.com/company/agreements-and-terms/main-services-agreement/"
+MSA_LINE = f"{MSA_URL},200,2026-10-08T09:00:00Z\n"
 
 
-def build_reply(pack):
-    blocks = f"```json\n{json.dumps(pack, indent=2)}\n```\n\n```csv\n{FETCH_LOG}```\n" if pack else ""
+def build_reply(pack, fetch_log=FETCH_LOG):
+    blocks = f"```json\n{json.dumps(pack, indent=2)}\n```\n\n```csv\n{fetch_log}```\n" if pack else ""
     return f"[SYNTHESIZED] Research pack for VR-0001 is done. Two rows are not found.\n\n{blocks}Done.\n"
 
 
@@ -115,6 +118,22 @@ class FetchPackTest(unittest.TestCase):
         self.assertEqual(ticket_path("VR-0001", self.tickets).read_bytes(), self.ticket_bytes)
         self.assertEqual(self.audit(), [("Research pack built", "model", "Cursor cloud agent reply-file",
                                          "pack check FAIL: R2 has no row", "PUBLIC")])
+
+    def test_link_missing_from_log_or_not_200_blocks_done(self):
+        self.assertIn(MSA_LINE, FETCH_LOG)
+        reason = f"R1 cites {MSA_URL} without an HTTP 200 in the fetch log"
+        logs = {
+            "missing from log": FETCH_LOG.replace(MSA_LINE, ""),
+            "logged with 404": FETCH_LOG.replace(MSA_LINE, MSA_LINE.replace(",200,", ",404,")),
+        }
+        for name, fetch_log in logs.items():
+            with self.subTest(case=name):
+                result = self.run_with_reply(build_reply(self.pack, fetch_log))
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, f"VR-0001: pack check FAIL\n- {reason}\n")
+                self.assertEqual(ticket_path("VR-0001", self.tickets).read_bytes(), self.ticket_bytes)
+                self.assertEqual(self.audit()[-1], ("Research pack built", "model", "Cursor cloud agent reply-file",
+                                                    f"pack check FAIL: {reason}", "PUBLIC"))
 
     def test_live_without_key_fails(self):
         code, _, err, stub = self.run_live({}, key="")
