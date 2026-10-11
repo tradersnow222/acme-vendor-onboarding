@@ -164,6 +164,18 @@ python3 -m scripts.fetch_pack --ticket VR-0001 --live
 
 Run `launch_research --live`, wait for the agent, then run `fetch_pack --live`. If `fetch_pack` exits with code 3, the agent is still running; run it again later.
 
+### Research completion webhook
+
+When a research agent finishes, a webhook notifies the vendor bot so it can wake up immediately instead of waiting for the 5-minute polling check. The hook runs automatically when the agent stops.
+
+Set these environment variables as Cursor cloud agent secrets:
+
+- `ACME_WEBHOOK_URL`: The webhook endpoint URL
+- `ACME_WEBHOOK_SECRET`: The secret key sent in the webhook header
+- `ACME_WEBHOOK_KEY_HEADER`: The header name for the secret (default: `X-Webhook-Key`)
+
+The webhook POSTs JSON with only `{"ticket_id": "VR-0001", "status": "completed"}` and includes the secret in the configured header. It never sends pack contents. The hook always exits successfully and never fails the agent run. If the URL or secret is not set, the hook does nothing. The 5-minute polling check remains as the fallback.
+
 ### Other make targets
 
 ```bash

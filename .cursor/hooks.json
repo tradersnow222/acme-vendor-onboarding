@@ -1,0 +1,6 @@
+{
+  "stop": {
+    "command": "python3",
+    "args": ["scripts/notify_research_done.py"]
+  }
+}
