@@ -133,6 +133,7 @@ class NotifyResearchDoneTest(unittest.TestCase):
                     **os.environ,
                     "ACME_WEBHOOK_URL": f"http://127.0.0.1:{mock.port}/webhook",
                     "ACME_WEBHOOK_SECRET": "secret123",
+                    "ACME_WEBHOOK_KEY_HEADER": "X-Webhook-Key",
                     "RUNS_DIR": self.runs,
                 },
                 cwd=workspace
@@ -175,7 +176,7 @@ class NotifyResearchDoneTest(unittest.TestCase):
             self.assertEqual(len(MockWebhookHandler.received_requests), 1)
             
             req = MockWebhookHandler.received_requests[0]
-            self.assertEqual(req["headers"]["Authorization"], "my-secret")
+            self.assertEqual(req["headers"]["Authorization"], "Bearer my-secret")
             self.assertNotIn("X-Webhook-Key", req["headers"])
 
     def test_second_invocation_does_not_send_again(self):
@@ -247,6 +248,169 @@ class NotifyResearchDoneTest(unittest.TestCase):
             log_contents = log_file.read_text()
             self.assertIn("webhook sent successfully for VR-0005", log_contents)
             self.assertIn("status: completed", log_contents)
+
+
+class WebhookSecretNormalizationTest(unittest.TestCase):
+    """Test webhook secret normalization for various input formats."""
+    
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = self.tmp.name
+        self.runs = str(Path(self.dir) / "runs")
+    
+    def tearDown(self):
+        self.tmp.cleanup()
+    
+    def run_script_and_get_log(self, secret, header_name="Authorization", cwd=None):
+        """Run script with given secret and return log contents."""
+        if cwd is None:
+            workspace = Path(self.dir) / "workspace"
+            workspace.mkdir(exist_ok=True)
+            cwd = workspace
+        else:
+            workspace = cwd
+        
+        (workspace / ".research_ticket_id").write_text("VR-NORM-TEST")
+        
+        with MockServerContext() as mock:
+            result = subprocess.run(
+                [sys.executable, str(REPO_ROOT / "scripts" / "notify_research_done.py")],
+                input='{"status": "completed"}',
+                capture_output=True,
+                text=True,
+                cwd=cwd,
+                env={
+                    **os.environ,
+                    "ACME_WEBHOOK_URL": f"http://127.0.0.1:{mock.port}/webhook",
+                    "ACME_WEBHOOK_SECRET": secret,
+                    "ACME_WEBHOOK_KEY_HEADER": header_name,
+                    "RUNS_DIR": self.runs,
+                },
+            )
+            
+            log_file = workspace / ".hook.log"
+            log_contents = log_file.read_text() if log_file.exists() else ""
+            
+            received = MockWebhookHandler.received_requests
+            return result, log_contents, received
+    
+    def test_secret_with_leading_whitespace_is_stripped(self):
+        result, log, received = self.run_script_and_get_log("  \t my-secret-key")
+        
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0]["headers"]["Authorization"], "Bearer my-secret-key")
+        
+        self.assertNotIn("  \t my-secret-key", log)
+    
+    def test_secret_with_trailing_whitespace_is_stripped(self):
+        result, log, received = self.run_script_and_get_log("my-secret-key\n\r  ")
+        
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0]["headers"]["Authorization"], "Bearer my-secret-key")
+        
+        self.assertNotIn("my-secret-key\n\r  ", log)
+    
+    def test_secret_with_double_quotes_is_stripped(self):
+        result, log, received = self.run_script_and_get_log('"my-secret-key"')
+        
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0]["headers"]["Authorization"], "Bearer my-secret-key")
+    
+    def test_secret_with_single_quotes_is_stripped(self):
+        result, log, received = self.run_script_and_get_log("'my-secret-key'")
+        
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0]["headers"]["Authorization"], "Bearer my-secret-key")
+    
+    def test_secret_with_bearer_prefix_is_not_doubled(self):
+        result, log, received = self.run_script_and_get_log("Bearer my-secret-key")
+        
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0]["headers"]["Authorization"], "Bearer my-secret-key")
+        self.assertNotIn("Bearer Bearer", received[0]["headers"]["Authorization"])
+    
+    def test_secret_without_bearer_gets_prefix_for_authorization_header(self):
+        result, log, received = self.run_script_and_get_log("my-secret-key")
+        
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0]["headers"]["Authorization"], "Bearer my-secret-key")
+    
+    def test_non_authorization_header_does_not_get_bearer_prefix(self):
+        result, log, received = self.run_script_and_get_log("my-secret-key", header_name="X-Webhook-Key")
+        
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0]["headers"]["X-Webhook-Key"], "my-secret-key")
+        self.assertNotIn("Bearer", received[0]["headers"]["X-Webhook-Key"])
+    
+    def test_complex_normalization_whitespace_quotes_bearer(self):
+        result, log, received = self.run_script_and_get_log('  "Bearer my-secret-key"  \n')
+        
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0]["headers"]["Authorization"], "Bearer my-secret-key")
+    
+    def test_log_never_contains_full_secret(self):
+        secret = "Bearer super-secret-token-abc123xyz"
+        result, log, _ = self.run_script_and_get_log(secret)
+        
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("super-secret-token-abc123xyz", log)
+        self.assertNotIn(secret, log)
+        
+        self.assertIn("diagnostics=", log)
+        self.assertIn("first_4_after_bearer", log)
+        self.assertIn("supe", log)
+    
+    def test_diagnostics_shows_correct_metadata(self):
+        secret = '  "Bearer test-key"  '
+        result, log, _ = self.run_script_and_get_log(secret)
+        
+        self.assertEqual(result.returncode, 0)
+        self.assertIn('"has_leading_whitespace": true', log)
+        self.assertIn('"has_trailing_whitespace": true', log)
+        self.assertIn('"has_surrounding_quotes": true', log)
+        self.assertIn('"starts_with_bearer": true', log)
+        self.assertIn('"first_4_after_bearer": "test"', log)
+    
+    def test_full_header_line_pasted_as_secret(self):
+        """Test the exact VR-0007/VR-0008 failure case: entire header line was pasted."""
+        secret = "Authorization: Bearer crsr_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        self.assertEqual(len(secret), 91)
+        
+        result, log, received = self.run_script_and_get_log(secret)
+        
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(received), 1)
+        
+        sent_header = received[0]["headers"]["Authorization"]
+        self.assertEqual(sent_header, "Bearer crsr_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+        self.assertNotIn("Authorization: Bearer Bearer", sent_header)
+        self.assertEqual(sent_header.count("Bearer "), 1)
+    
+    def test_header_line_with_lowercase_authorization(self):
+        """Test case-insensitive header name stripping."""
+        secret = "authorization: Bearer my-token-xyz"
+        result, log, received = self.run_script_and_get_log(secret)
+        
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0]["headers"]["Authorization"], "Bearer my-token-xyz")
+    
+    def test_header_line_with_mixed_case(self):
+        """Test mixed-case header name stripping."""
+        secret = "AuThOrIzAtIoN: Bearer my-token-abc"
+        result, log, received = self.run_script_and_get_log(secret)
+        
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0]["headers"]["Authorization"], "Bearer my-token-abc")
 
 
 if __name__ == "__main__":
