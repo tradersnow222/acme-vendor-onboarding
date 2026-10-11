@@ -53,11 +53,69 @@ def write_marker(ticket_id):
     marker_path.write_text("")
 
 
+def normalize_webhook_secret(secret, header_name):
+    """
+    Normalize webhook secret by:
+    1. Stripping leading header name (e.g. 'Authorization:') if present
+    2. Stripping whitespace and quotes
+    3. For Authorization header, ensuring exactly one Bearer prefix
+    """
+    normalized = secret.strip()
+    
+    # Strip leading header name if present (case-insensitive)
+    # e.g. "Authorization: Bearer token" -> "Bearer token"
+    header_prefix = f"{header_name}:"
+    if normalized.lower().startswith(header_prefix.lower()):
+        normalized = normalized[len(header_prefix):].strip()
+    
+    # Strip quotes and whitespace
+    normalized = normalized.strip('"').strip("'").strip()
+    
+    # For Authorization header, ensure exactly one Bearer prefix
+    if header_name == "Authorization":
+        if not normalized.startswith("Bearer "):
+            normalized = f"Bearer {normalized}"
+    
+    return normalized
+
+
+def redact_for_log(secret):
+    """
+    Create a redacted version of the secret for logging diagnostics.
+    Shows: length, Bearer prefix presence, whitespace, quotes, first 4 chars after Bearer.
+    """
+    stripped_ws = secret.strip()
+    stripped = stripped_ws.strip('"').strip("'").strip()
+    
+    diagnostics = {
+        "length": len(secret),
+        "has_leading_whitespace": secret != secret.lstrip(),
+        "has_trailing_whitespace": secret != secret.rstrip(),
+        "has_surrounding_quotes": (stripped_ws.startswith('"') or stripped_ws.startswith("'")) and 
+                                  (stripped_ws.endswith('"') or stripped_ws.endswith("'")),
+        "starts_with_bearer": stripped.startswith("Bearer "),
+    }
+    
+    if stripped.startswith("Bearer "):
+        prefix_end = len("Bearer ")
+        first_chars = stripped[prefix_end:prefix_end+4] if len(stripped) > prefix_end else ""
+        diagnostics["first_4_after_bearer"] = first_chars
+    else:
+        diagnostics["first_4_chars"] = stripped[:4] if len(stripped) >= 4 else stripped
+    
+    return diagnostics
+
+
 def send_webhook(ticket_id, status, webhook_url, webhook_secret, webhook_key_header):
+    normalized_secret = normalize_webhook_secret(webhook_secret, webhook_key_header)
+    
+    log_diagnostics = redact_for_log(webhook_secret)
+    log_message(f"notify_research_done: sending webhook for {ticket_id}, header={webhook_key_header}, diagnostics={json.dumps(log_diagnostics)}")
+    
     payload = json.dumps({"ticket_id": ticket_id, "status": status}).encode()
     headers = {
         "Content-Type": "application/json",
-        webhook_key_header: webhook_secret,
+        webhook_key_header: normalized_secret,
     }
     
     request = urllib.request.Request(
@@ -67,8 +125,13 @@ def send_webhook(ticket_id, status, webhook_url, webhook_secret, webhook_key_hea
         method="POST",
     )
     
-    with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
-        return response.status
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            return response.status
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8', errors='replace')[:300]
+        log_message(f"notify_research_done: HTTP {e.code} response body: {error_body}")
+        raise
 
 
 def main():
