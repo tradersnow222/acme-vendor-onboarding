@@ -1,14 +1,19 @@
 import copy
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 from scripts.check_pack import check_pack
-from scripts.samples import load_sample
+from scripts.samples import SAMPLES_DIR, load_sample
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ZENDESK_PACK = load_sample("zendesk")["expected"]["pack"]
+FIGMA_PACK = load_sample("figma")["expected"]["pack"]
+FIGMA_LOG = SAMPLES_DIR / "vr-0002-figma-fetch-log.csv"
+TOS_URL = "https://www.figma.com/legal/tos/"
+TOS_LINE = f"{TOS_URL},200,2026-10-09T00:36:40+00:00\n"
 
 
 def check_changed(change):
@@ -52,6 +57,32 @@ class CheckPackTest(unittest.TestCase):
         self.assertEqual(
             result, {"passed": False, "reasons": ["R4 has bad checked_date '10/08/2026'"], "not_found": 2}
         )
+
+    def check_figma_with_log(self, log_text):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "fetch_log.csv"
+            log.write_text(log_text)
+            return check_pack(FIGMA_PACK["rows"], log)
+
+    def test_figma_pack_passes_when_every_link_is_logged_with_200(self):
+        result = check_pack(FIGMA_PACK["rows"], FIGMA_LOG)
+        self.assertEqual(result, {"passed": True, "reasons": [], "not_found": FIGMA_PACK["check"]["not_found"]})
+
+    def test_link_missing_from_fetch_log_fails_and_names_row(self):
+        log_text = FIGMA_LOG.read_text()
+        self.assertIn(TOS_LINE, log_text)
+        result = self.check_figma_with_log(log_text.replace(TOS_LINE, ""))
+        self.assertEqual(result, {
+            "passed": False, "reasons": [f"R1 cites {TOS_URL} without an HTTP 200 in the fetch log"], "not_found": 0,
+        })
+
+    def test_link_logged_with_non_200_fails_and_names_row(self):
+        log_text = FIGMA_LOG.read_text()
+        self.assertIn(TOS_LINE, log_text)
+        result = self.check_figma_with_log(log_text.replace(TOS_LINE, TOS_LINE.replace(",200,", ",404,")))
+        self.assertEqual(result, {
+            "passed": False, "reasons": [f"R1 cites {TOS_URL} without an HTTP 200 in the fetch log"], "not_found": 0,
+        })
 
     def test_command_line_prints_result_for_sample(self):
         run = subprocess.run(

@@ -1,3 +1,4 @@
+import csv
 import re
 import sys
 from datetime import date
@@ -20,10 +21,16 @@ def _is_date(value):
         return False
 
 
-def check_pack(rows):
+def _fetched_ok(fetch_log):
+    with open(fetch_log, newline="") as f:
+        return {line["url"] for line in csv.DictReader(f) if line["http_status"] == "200"}
+
+
+def check_pack(rows, fetch_log=None):
     reasons = []
     seen = set()
     found = set()
+    fetched_ok = None if fetch_log is None else _fetched_ok(fetch_log)
     for row in rows:
         row_id = row.get("id")
         item = _item(row_id)
@@ -39,6 +46,10 @@ def check_pack(rows):
             reasons.append(f"{row_id} has bad status {status!r}")
         if not row.get("source_urls"):
             reasons.append(f"{row_id} has no source URL")
+        if fetched_ok is not None:
+            for url in row.get("source_urls") or []:
+                if url not in fetched_ok:
+                    reasons.append(f"{row_id} cites {url} without an HTTP 200 in the fetch log")
         if not _is_date(row.get("checked_date")):
             reasons.append(f"{row_id} has bad checked_date {row.get('checked_date')!r}")
     reasons += [f"{item} has no row" for item in REQUIRED_ITEMS if item not in seen]
