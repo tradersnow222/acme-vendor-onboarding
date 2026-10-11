@@ -4,35 +4,64 @@ Governed workflow for vendor onboarding: intake → research pack → approval r
 
 ---
 
-## The Problem
+## The 5-minute version
 
-**Maya Chen (Staff Ops, Acme)** owns vendor onboarding. Current process takes 1-2 weeks. Leadership wants 1-2 days with clear audit trails.
+**Problem:** Maya Chen (Staff Ops) owns vendor onboarding. Current process takes 1-2 weeks (messy intake, manual research, late approvals). Leadership wants 1-2 days with clear audit trails.
 
-### Four Friction Points
+**Flow:**
 
-**1. Messy intake**
-- Email or ticket: "Onboard Vendor X for a 90-day pilot"
-- Five required fields often incomplete: vendor legal name, website, customer data flag, business owner, target start date
-- Ops chases missing fields over days of back-and-forth
+```mermaid
+flowchart LR
+    A[Requester] --> B[Grok Bot<br/>SCRIPT]
+    B --> C[Research agent<br/>MODEL]
+    C --> D[Manager + Security<br/>PERSON]
+    D --> E[Recorded decision<br/>SCRIPT]
+    E --> F[Status & digest<br/>SCRIPT]
+    
+    style A fill:#e1f5ff
+    style B fill:#e8f5e9
+    style C fill:#fff3e0
+    style D fill:#fce4ec
+    style E fill:#e8f5e9
+    style F fill:#e8f5e9
+```
 
-**2. Manual research copy/paste**
-- Ops manually gathers public vendor info (website, security page, pricing) into shared doc
-- No standard template or checklist
-- Inconsistent and time-consuming
+**What happens:**
 
-**3. Late and unclear approvals**
-- Manager reviews whenever they notice the thread (no proactive routing)
-- Security pinged late, only if vendor touches customer data
-- No single status view
-- No audit trail
+| You say | What runs | Who decides |
+|---------|-----------|-------------|
+| "Onboard Zendesk for 90-day pilot..." | Bot validates 5 fields (SCRIPT) | Requester answers follow-ups |
+| "Launch research" | Cloud agent fetches public pages (MODEL) | None (public sources only) |
+| (Pack ready) | Bot presents pack summary | Requester reviews |
+| (Route for approval) | Bot notifies manager + Security if customer data (SCRIPT) | Manager + Security approve/reject |
+| "Approved" or "Rejected" | Bot records decision with name + quote (SCRIPT) | None (recording only) |
+| "Close ticket" | Bot closes when all approvers decided (SCRIPT) | None |
+| "What's the status?" | Bot reads ticket + audit log (SCRIPT) | None |
+| (Silence from approver) | Bot nudges after configured hours (SCRIPT) | Ops reviews |
 
-**4. Cycle time too long**
-- End-to-end typically 1-2 weeks
-- Leadership wants 1-2 days with clear records
+**Guardrails:**
+- **Impossible:** Bot has no email, no private data access. Approvals stored with hash; changes invalidate.
+- **Check:** Scripts validate 5 fields, check pack (R1/R3/R4/R10 + source URLs), gate routing, cross-check intake vs R3.
+- **Rule:** `.cursor/rules/` define policy (5 fields, R1-R11, manager always + Security when customer data, public sources only).
+- **Person:** Requester confirms before research. Manager + Security approve in their own words. Ops reviews digest.
+
+**Proof (VR-0010 RevenueCat):** Opened 10:37:41 PT, closed 10:45:00 PT (~7 min). Requester: Matt Snow (demo requester, recorded as Support Lead). Pack: 10:37:50–10:41:29 (~3.5 min), check PASS (12 rows, 0 not found). Approvals: Daniel Okafor + Lena Hoffmann (both approved_with_conditions). Audit: 7 rows (4 script, 1 model, 2 person). Exceptions: 0.
+
+**Mocked / Synthesized / Live:**
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Bot, scripts, cloud agent** | Live | Real Grok Bot, local Python scripts, Cursor API (`--live` flag) |
+| **Sample requesters, approvers, pilot details** | Synthesized | Fictional Acme people labeled `[SYNTHESIZED]` in `data/samples/` |
+| **Vendor websites, public pricing, trust pages** | Live | Real public pages (Zendesk, Figma, Asana, RevenueCat) |
 
 Security cares about what agents can touch, LOB leaders care about cycle time and exception rate, and eng cares about integrations and ownership.
 
-### Owners
+---
+
+## Reference (details below)
+
+<details><summary>Owners</summary>
 
 | Role | Owner | Notes |
 |------|-------|-------|
@@ -40,9 +69,9 @@ Security cares about what agents can touch, LOB leaders care about cycle time an
 | **Security** | Lena Hoffmann [SYNTHESIZED] | Security & GRC Lead; approves when vendor touches customer data |
 | **Eng** | Eng [SYNTHESIZED] | Repository owner; maintains automation |
 
----
+</details>
 
-## Architecture
+<details><summary>Detailed Flow</summary>
 
 ```mermaid
 flowchart TD
@@ -82,11 +111,9 @@ flowchart TD
 
 **Label Legend:** SCRIPT = script runs locally | MODEL = cloud agent or bot | PERSON = human checkpoint
 
----
+</details>
 
-## Bot Design
-
-Grok Bot (Acme Vendors) is the front door. Every action is backed by a script that enforces the rules. The bot words the question; the script decides what's missing.
+<details><summary>Bot Actions</summary>
 
 | User Action | Script Run | Actor | Human Checkpoint |
 |-------------|------------|-------|------------------|
@@ -113,7 +140,9 @@ Grok Bot (Acme Vendors) is the front door. Every action is backed by a script th
 | Bot nudges stale approvals (silence ≠ yes) | `scripts/stale_check.py` (configured hours) | SCRIPT | Approver gets reminder |
 | Bot sends daily digest to Ops | `scripts/digest.py` lists open requests | SCRIPT | Ops reviews exceptions |
 
-### Bot Prompt Rules (Key Constraints)
+</details>
+
+<details><summary>Bot Capabilities</summary>
 
 The bot **CAN**:
 - Collect the five required intake fields
@@ -131,7 +160,9 @@ The bot **CANNOT**:
 - Touch private data or vendor portals
 - Run live research (research is a dry run unless --live)
 
-### Guardrails (Four Layers)
+</details>
+
+<details><summary>Guardrails (Four Layers)</summary>
 
 **1. Impossible (technical blocks)**
 - Bot has no email integration (cannot send external email)
@@ -156,59 +187,32 @@ The bot **CANNOT**:
 - Manager and Security approve or reject in their own words
 - Ops reviews daily digest (open requests, exceptions, days open)
 
----
+</details>
 
-## Build: Folder Layout
+<details><summary>Folder Layout</summary>
 
 ```
 acme-vendor-onboarding/
 ├── scripts/                    # Python scripts (intake, routing, approvals, audit, status, Cursor API)
-│   ├── intake_check.py         # Validate five fields
-│   ├── followup.py             # Pick follow-up questions
-│   ├── ticket.py               # Create and close tickets
-│   ├── launch_research.py      # Launch cloud agent via Cursor API (dry run by default, --live flag)
-│   ├── fetch_pack.py           # Fetch pack from agent reply
-│   ├── check_pack.py           # Validate pack against checklist
-│   ├── route.py                # Route to manager + Security (conditional)
-│   ├── request_approvals.py    # Notify approvers
-│   ├── record_approval.py      # Record decision (name, decision, timestamp, quote)
-│   ├── status.py               # Generate status from ticket + audit
-│   ├── stale_check.py          # List approvals due a nudge
-│   ├── digest.py               # Daily Ops digest
-│   ├── notify_research_done.py # Webhook notification on agent stop
-│   └── run.py                  # Trace one sample through every step (make run)
 ├── tests/                      # Unit tests (make test)
 ├── data/samples/               # Sample vendor requests (synthesized)
-│   ├── vr-0001-zendesk.json    # Worked example (messy intake, one follow-up, manager + Security)
-│   ├── vr-0002-figma.json      # Clean request (no follow-ups, manager only)
-│   └── vr-0003-asana.json      # Exception (missing business owner)
 ├── templates/                  # Research pack template
-│   └── research_pack.json      # R1-R11 items
 ├── config/                     # Approval settings (nudge after N hours)
 ├── tickets/                    # One JSON file per request (output, git-ignored)
 ├── packs/                      # Research packs (output, git-ignored)
 ├── runs/                       # Audit logs and agent run files (output, git-ignored)
 ├── .cursor/
 │   ├── rules/                  # Cursor rules (8 files)
-│   │   ├── data-boundaries.mdc # Public sources only, no NDA, no secrets in repo
-│   │   ├── intake-policy.mdc   # Five fields, valid values, max 2 follow-ups
-│   │   ├── research-checklist.mdc # R1-R11 items, must-haves, source URLs required
-│   │   ├── approval-policy.mdc # Manager always, Security conditional, silence ≠ yes
-│   │   ├── status-and-audit.mdc # Days open, exception count, audit log format
-│   │   ├── git-workflow.mdc    # Branch + PR policy, commit hygiene
-│   │   ├── pr-style.mdc        # Plain title, ready for review, under 200 words
-│   │   └── verification.mdc    # Tests call scripts on samples, assert expected values
 │   ├── skills/                 # Skills (3)
-│   │   ├── validate-intake/    # Check five fields, pick follow-ups
-│   │   ├── build-research-pack/ # Gather R1-R11 from public sources
-│   │   └── verify-acme/        # Verify sample data is [SYNTHESIZED] or [PUBLIC]
 │   └── hooks.json              # Stop hook → notify_research_done.py
 ├── Makefile                    # make setup, test, run, validate, route, status, audit, clean
 ├── AGENTS.md                   # Agent guidelines (git workflow, data boundaries, approval policy)
 └── README.md                   # This file
 ```
 
-### Rules vs Scripts
+</details>
+
+<details><summary>Rules vs Scripts</summary>
 
 **Rules explain policy** (`.cursor/rules/*.mdc`): five required fields, what counts as valid, who must approve, what "enough research" means, data boundaries.
 
@@ -216,9 +220,9 @@ acme-vendor-onboarding/
 
 The bot reads the rules to word follow-up questions and pack summaries. The scripts are the source of truth for validation and routing.
 
----
+</details>
 
-## Real Run: VR-0010 RevenueCat
+<details><summary>Full VR-0010 Details</summary>
 
 Request opened **2026-10-11 10:37:41 PT**, closed **10:45:00 PT** (~7 minutes).
 
@@ -243,9 +247,9 @@ Request opened **2026-10-11 10:37:41 PT**, closed **10:45:00 PT** (~7 minutes).
 **Days open:** 0.0 (same day).  
 **Exceptions:** 0.
 
----
+</details>
 
-## Mocked vs Synthesized vs Live
+<details><summary>Component Status (Complete)</summary>
 
 | Component | Status | Notes |
 |-----------|--------|-------|
@@ -267,6 +271,8 @@ Request opened **2026-10-11 10:37:41 PT**, closed **10:45:00 PT** (~7 minutes).
 | **Manager approvals in bot** | Live | Real humans in production; played by Matt in demo |
 | **Security approvals in bot** | Live | Real Security team in production; played by Matt in demo |
 | **Approvals in `make run`** | Mocked | Pre-set `approver_replies` in `data/samples/` |
+
+</details>
 
 ---
 
