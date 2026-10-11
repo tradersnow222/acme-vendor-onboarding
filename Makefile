@@ -4,7 +4,7 @@ help:
 	@echo "Acme Vendor Onboarding - Available Commands"
 	@echo ""
 	@echo "  make help       - Show this help message"
-	@echo "  make setup      - Set up project (placeholder)"
+	@echo "  make setup      - Set up project structure"
 	@echo "  make validate SAMPLE=<zendesk|figma|asana> - Check the five intake fields"
 	@echo "  make research TICKET=<id> - Dry run of the research agent launch"
 	@echo "  make route SAMPLE=<zendesk|figma|asana>    - Show who must approve"
