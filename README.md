@@ -278,8 +278,6 @@ The bot reads the rules to word follow-up questions and pack summaries. The scri
 
 <details><summary>How to Run</summary>
 
-## How to Run
-
 Python 3.9 or newer. No pip installs. Run every command from repo root.
 
 ### 1. Set up
@@ -382,8 +380,6 @@ Webhook POSTs JSON: `{"ticket_id": "VR-0001", "status": "completed"}`. Never sen
 </details>
 
 <details><summary>Development Workflow</summary>
-
-## Development Workflow
 
 See `.cursor/rules/git-workflow.mdc` and `AGENTS.md` for full details.
 
