@@ -42,7 +42,7 @@ def main(argv):
         print(f"{args.ticket}: pack is for {pack.get('request_id')!r}, not {ticket['request_id']}; ticket not updated")
         return 1
 
-    result = check_pack(pack["rows"])
+    result = check_pack(pack["rows"], Path(args.pack).with_name("fetch_log.csv"))
     if not result["passed"]:
         print(f"{args.ticket}: pack check FAIL")
         for reason in result["reasons"]:

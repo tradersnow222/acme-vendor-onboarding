@@ -138,7 +138,7 @@ def main(argv):
     if fetch_log is not None:
         (pack_dir / "fetch_log.csv").write_text(fetch_log)
     code = write_back.main(["--ticket", args.ticket, "--pack", str(pack_path), "--tickets-dir", str(args.tickets_dir)])
-    result = check_pack(pack["rows"])
+    result = check_pack(pack["rows"], pack_dir / "fetch_log.csv")
     if result["passed"]:
         outcome = f"pack check PASS ({len(pack['rows'])} rows, {result['not_found']} not_found)"
     else:

@@ -1,6 +1,7 @@
 import csv
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -124,6 +125,16 @@ class MakefileTest(unittest.TestCase):
                 self.assertTrue((REPO_ROOT / "scripts" / f"{module}.py").is_file())
         audit = re.search(r"^audit:\n((?:\t.*\n)+)", makefile, re.M).group(1)
         self.assertIn("runs/$(TICKET)/audit.csv", audit)
+
+    @unittest.skipUnless(shutil.which("make"), "make is not installed")
+    def test_test_target_finds_tests_from_any_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            recipe = subprocess.run(["make", "-s", "-n", "-f", str(MAKEFILE), "test"],
+                                    cwd=tmp, capture_output=True, text=True).stdout.strip()
+            result = subprocess.run(f"{recipe} -k test_lists_all_samples", shell=True,
+                                    cwd=tmp, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Ran 1 test", result.stderr)
 
 
 if __name__ == "__main__":

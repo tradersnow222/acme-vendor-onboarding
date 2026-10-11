@@ -1,8 +1,10 @@
+import csv
 import re
 import sys
 from datetime import date
+from pathlib import Path
 
-from scripts.samples import load_sample
+from scripts.samples import load_sample, sample_fetch_log
 
 REQUIRED_ITEMS = [f"R{n}" for n in range(1, 11)]
 MUST_BE_FOUND = ["R1", "R3", "R4", "R10"]
@@ -20,10 +22,16 @@ def _is_date(value):
         return False
 
 
-def check_pack(rows):
+def _fetched_ok(fetch_log):
+    with open(fetch_log, newline="") as f:
+        return {line["url"] for line in csv.DictReader(f) if line["http_status"] == "200"}
+
+
+def check_pack(rows, fetch_log=None):
     reasons = []
     seen = set()
     found = set()
+    fetched_ok = _fetched_ok(fetch_log) if fetch_log and Path(fetch_log).is_file() else None
     for row in rows:
         row_id = row.get("id")
         item = _item(row_id)
@@ -39,6 +47,10 @@ def check_pack(rows):
             reasons.append(f"{row_id} has bad status {status!r}")
         if not row.get("source_urls"):
             reasons.append(f"{row_id} has no source URL")
+        if fetched_ok is not None:
+            for url in row.get("source_urls") or []:
+                if url not in fetched_ok:
+                    reasons.append(f"{row_id} cites {url} without an HTTP 200 in the fetch log")
         if not _is_date(row.get("checked_date")):
             reasons.append(f"{row_id} has bad checked_date {row.get('checked_date')!r}")
     reasons += [f"{item} has no row" for item in REQUIRED_ITEMS if item not in seen]
@@ -53,7 +65,7 @@ def main(argv):
         return 2
     sample = load_sample(argv[0])
     rows = sample["expected"]["pack"]["rows"] or []
-    result = check_pack(rows)
+    result = check_pack(rows, sample_fetch_log(sample["request_id"]))
     verdict = "PASS" if result["passed"] else "FAIL"
     print(f"{sample['request_id']} {argv[0]}: {verdict} ({len(rows)} rows, {result['not_found']} not_found)")
     for reason in result["reasons"]:

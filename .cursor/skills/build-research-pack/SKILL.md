@@ -40,7 +40,7 @@ Compare intake `touches_customer_data` with R3. If they disagree, flag it (see `
 The pack is done when check_pack passes:
 
 ```
-python3 -c "import json; from scripts.check_pack import check_pack; print(check_pack(json.load(open('packs/<request_id>/pack.json'))['rows']))"
+python3 -c "import json; from scripts.check_pack import check_pack; print(check_pack(json.load(open('packs/<request_id>/pack.json'))['rows'], 'packs/<request_id>/fetch_log.csv'))"
 ```
 
 It must print `'passed': True` with no reasons. Fix every reason it lists, then run it again.

@@ -35,6 +35,7 @@ Every row has: `id` (e.g. `R1`), `item`, `value`, `source_urls` (a list of one o
 
 ## Never invent a link
 - Every URL in `source_urls` must appear in the run's fetch log (URL, HTTP status, time) with HTTP 200.
+- `scripts/check_pack.py` enforces this when given the fetch log: a URL without an HTTP 200 line fails the check and names the row.
 - If a page can't be fetched, the item is `not_found`. Do not guess a URL.
 - Starter pages to look for: pricing, trust or security, sub-processor list, DPA, main services agreement, data residency. The legal name and sub-processors are often only in legal or help-center pages.
 
