@@ -30,6 +30,7 @@ RESPONSE = {
 }
 EXPECTED_BODY = {
     "prompt": {"text": (
+        "Write VR-0001 to .research_ticket_id before starting. "
         "Follow .cursor/skills/build-research-pack/SKILL.md for request VR-0001. "
         "The vendor is Zendesk, Inc. (https://www.zendesk.com). "
         "Write only under packs/VR-0001/. Use public pages only. "

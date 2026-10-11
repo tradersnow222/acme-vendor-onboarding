@@ -25,6 +25,7 @@ def build_prompt(ticket):
     request_id = ticket["request_id"]
     intake = ticket["intake"]
     return (
+        f"Write {request_id} to .research_ticket_id before starting. "
         f"Follow .cursor/skills/build-research-pack/SKILL.md for request {request_id}. "
         f"The vendor is {intake['vendor_legal_name']['value']} ({intake['website']['value']}). "
         f"Write only under packs/{request_id}/. Use public pages only. "
