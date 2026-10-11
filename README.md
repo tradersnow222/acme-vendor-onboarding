@@ -108,7 +108,7 @@ Grok Bot (Acme Vendors) is the front door. Every action is backed by a script th
 | Approver replies in their own words | Bot presents reply | BOT → PERSON | Bot never decides; person decides |
 | Bot records decision with name + exact quote | `scripts/record_approval.py` | SCRIPT | None (recording only) |
 | **Close-out** | | | |
-| Requester withdraws request (PR #48) | `scripts/ticket.py --close` with reason | SCRIPT | Requester confirms |
+| Requester withdraws request | `python3 -m scripts.ticket --withdraw <id> --by "<name>" --reason "<text>"` | PERSON | Requester's own words; script records it |
 | Bot closes when all approvers decided | `scripts/ticket.py --close` | SCRIPT | None |
 | **Status & Maintenance** | | | |
 | Anyone asks bot "What's the status of VR-0001?" | `scripts/status.py` reads ticket + audit | SCRIPT | None |
