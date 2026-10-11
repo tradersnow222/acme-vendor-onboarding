@@ -143,6 +143,85 @@ class CloseTicketTest(unittest.TestCase):
         result = self.close("figma", "--close", "VR-0002")
         self.assertEqual(result.returncode, 2)
         self.assertEqual(result.stdout, "")
-        self.assertEqual(result.stderr, "give either a sample or --close REQUEST_ID, not both\n"
-                                        "example: python3 -m scripts.ticket --close VR-0001\n")
+        self.assertIn("give exactly one of", result.stderr)
         self.assertFalse(self.tickets_dir.exists())
+
+
+class WithdrawTicketTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.tickets_dir = Path(self.tmp.name) / "tickets"
+        self.runs_dir = Path(self.tmp.name) / "runs"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def make_ticket(self, name):
+        sample = load_sample(name)
+        create_ticket(sample["request_id"], sample["expected"]["intake"]["fields"], self.tickets_dir)
+        return sample
+
+    def withdraw(self, *args):
+        return subprocess.run(
+            [sys.executable, "-m", "scripts.ticket", *args,
+             "--dir", str(self.tickets_dir), "--runs-dir", str(self.runs_dir)],
+            cwd=REPO_ROOT, capture_output=True, text=True,
+        )
+
+    def test_withdraw_open_ticket(self):
+        sample = self.make_ticket("zendesk")
+        result = self.withdraw("--withdraw", "VR-0001", "--by", "Alice Chan",
+                               "--reason", "no longer needed", "--at", "2026-10-09T14:30:00-07:00")
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "VR-0001: withdrawn by Alice Chan at 2026-10-09T14:30:00-07:00\n"
+                                        "reason: no longer needed\n")
+        ticket = read_ticket("VR-0001", self.tickets_dir)
+        self.assertEqual(ticket["closed_at"], "2026-10-09T14:30:00-07:00")
+        self.assertEqual(ticket["final_decision"], "withdrawn")
+        self.assertEqual(ticket["withdrawn_by"], "Alice Chan")
+        self.assertEqual(ticket["withdrawn_reason"], "no longer needed")
+        rows = read_audit("VR-0001", self.runs_dir)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            {k: rows[-1][k] for k in ("step", "actor_type", "actor", "timestamp_pt", "outcome", "est_cost", "data_label")},
+            {"step": "Withdraw", "actor_type": "person", "actor": "Alice Chan",
+             "timestamp_pt": "2026-10-09T14:30:00-07:00",
+             "outcome": "withdrawn: no longer needed",
+             "est_cost": "~0", "data_label": "SYNTHESIZED"},
+        )
+
+    def test_withdraw_refuses_already_closed(self):
+        sample = self.make_ticket("figma")
+        ticket = read_ticket("VR-0002", self.tickets_dir)
+        ticket["closed_at"] = "2026-10-08T10:00:00-07:00"
+        ticket["final_decision"] = "approved"
+        write_ticket(ticket, "VR-0002", self.tickets_dir)
+        before = ticket_path("VR-0002", self.tickets_dir).read_bytes()
+        result = self.withdraw("--withdraw", "VR-0002", "--by", "Bob Lee",
+                               "--reason", "changed my mind", "--at", "2026-10-09T14:30:00-07:00")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "VR-0002: already closed approved at 2026-10-08T10:00:00-07:00\n")
+        self.assertEqual(ticket_path("VR-0002", self.tickets_dir).read_bytes(), before)
+        self.assertFalse(audit_path("VR-0002", self.runs_dir).exists())
+
+    def test_withdraw_requires_by_name(self):
+        self.make_ticket("zendesk")
+        result = self.withdraw("--withdraw", "VR-0001", "--reason", "no longer needed")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--withdraw requires --by <name>", result.stderr)
+
+    def test_withdraw_requires_reason(self):
+        self.make_ticket("zendesk")
+        result = self.withdraw("--withdraw", "VR-0001", "--by", "Alice Chan")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--withdraw requires --reason <text>", result.stderr)
+
+    def test_withdrawn_treated_as_closed_in_digest(self):
+        from scripts.digest import open_tickets
+        self.make_ticket("zendesk")
+        self.make_ticket("figma")
+        self.withdraw("--withdraw", "VR-0001", "--by", "Alice Chan",
+                      "--reason", "no longer needed", "--at", "2026-10-09T14:30:00-07:00")
+        tickets = open_tickets(self.tickets_dir)
+        self.assertEqual(len(tickets), 1)
+        self.assertEqual(tickets[0]["request_id"], "VR-0002")
