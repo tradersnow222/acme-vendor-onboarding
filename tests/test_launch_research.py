@@ -39,7 +39,7 @@ EXPECTED_BODY = {
         "and packs/VR-0001/fetch_log.csv in one ```csv fenced block whose first line is url,http_status,fetched_at. "
         "Put each fence on its own line and nothing else inside the blocks."
     )},
-    "repos": [{"url": "https://github.com/tradersnow222/acme-vendor-onboarding", "startingRef": "main"}],
+    "repos": [{"url": "https://github.com/example-co/vendor-onboarding", "startingRef": "main"}],
     "autoCreatePR": False,
 }
 
@@ -62,7 +62,8 @@ class LaunchResearchTest(unittest.TestCase):
 
     def run_live(self):
         out = io.StringIO()
-        with mock.patch.dict(os.environ, {"CURSOR_API_KEY": FAKE_KEY}), contextlib.redirect_stdout(out):
+        env = {"CURSOR_API_KEY": FAKE_KEY, "VENDOR_ONBOARDING_REPO": "https://github.com/example-co/vendor-onboarding"}
+        with mock.patch.dict(os.environ, env), contextlib.redirect_stdout(out):
             code = launch_research.main(["--ticket", "VR-0001", "--tickets-dir", self.dir,
                                          "--runs-dir", self.runs, "--live"])
         return code, out.getvalue()
@@ -70,13 +71,16 @@ class LaunchResearchTest(unittest.TestCase):
     def test_dry_run_prints_request_without_key_or_ticket_change(self):
         before = ticket_path("VR-0001", self.dir).read_bytes()
         result = self.run_cli("--ticket", "VR-0001", "--tickets-dir", self.dir, "--runs-dir", self.runs,
-                              env={**os.environ, "CURSOR_API_KEY": FAKE_KEY})
+                              env={**os.environ, "CURSOR_API_KEY": FAKE_KEY,
+                                   "VENDOR_ONBOARDING_REPO": "https://github.com/example-co/vendor-onboarding"})
         self.assertEqual(result.returncode, 0, result.stderr)
         for text in ["POST https://api.cursor.com/v1/agents",
-                     "https://github.com/tradersnow222/acme-vendor-onboarding",
+                     "https://github.com/example-co/vendor-onboarding",
                      '"startingRef": "main"', "build-research-pack", "VR-0001", "Zendesk, Inc."]:
             self.assertIn(text, result.stdout)
+        self.assertNotIn("x-access-token", result.stdout + result.stderr)
         self.assertNotIn(FAKE_KEY, result.stdout + result.stderr)
+        self.assertNotIn("@", result.stdout.split("https://", 1)[1].split("/", 1)[0])
         self.assertEqual(result.stdout.splitlines()[-1],
                          "Dry run: nothing was sent. Add --live to launch the research agent.")
         self.assertEqual(ticket_path("VR-0001", self.dir).read_bytes(), before)
@@ -148,6 +152,28 @@ class LaunchResearchTest(unittest.TestCase):
         self.assertIn("--live", result.stdout)
         self.assertIn(EXAMPLE, result.stdout)
         self.assertIn(f"{EXAMPLE} --live", result.stdout)
+        self.assertIn("VENDOR_ONBOARDING_REPO", result.stdout)
+
+    def test_repo_defaults_to_origin_without_credentials(self):
+        env = {k: v for k, v in os.environ.items() if k not in ("CURSOR_API_KEY", "VENDOR_ONBOARDING_REPO")}
+        result = self.run_cli("--ticket", "VR-0001", "--tickets-dir", self.dir, env=env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        with mock.patch.dict(os.environ, env, clear=True):
+            url = launch_research.repo_url()
+        self.assertTrue(url.startswith("https://"), url)
+        self.assertNotIn("@", url.split("://", 1)[1])
+        self.assertIn(url, result.stdout)
+        self.assertNotIn("x-access-token", result.stdout + result.stderr)
+
+    def test_normalize_repo_url_strips_credentials_and_git_suffix(self):
+        self.assertEqual(
+            launch_research.normalize_repo_url("https://user:secret@github.com/example-co/vendor.git"),
+            "https://github.com/example-co/vendor",
+        )
+        self.assertEqual(
+            launch_research.normalize_repo_url("git@github.com:example-co/vendor.git"),
+            "https://github.com/example-co/vendor",
+        )
 
 
 if __name__ == "__main__":

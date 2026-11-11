@@ -1,8 +1,9 @@
+import re
 import sys
 import tempfile
 from datetime import date, datetime
 
-from scripts.approvals import record_decision
+from scripts.approvals import load_config, record_decision
 from scripts.check_pack import check_pack
 from scripts.followup import pick_followups
 from scripts.intake_check import check_intake
@@ -23,6 +24,11 @@ STEP_ACTORS = {
     5: "scripts.check_pack",
     6: "scripts.route",
 }
+
+
+def scratch_prefix():
+    slug = re.sub(r"[^a-z0-9]+", "-", load_config()["company_name"].lower()).strip("-")
+    return slug or "vendor"
 
 
 def step(number, actor, name, outcome, steps):
@@ -48,7 +54,7 @@ def run(name):
     step(2, "script", "Follow-up questions",
          f"round 1 asked {asked}; complete after {rounds} round(s)" if questions else "none needed", steps)
 
-    tickets_dir = tempfile.mkdtemp(prefix="acme-tickets-")
+    tickets_dir = tempfile.mkdtemp(prefix=f"{scratch_prefix()}-tickets-")
     ticket = create_ticket(request_id, fields, tickets_dir)
     ticket["created_at"] = sample["messages"][0]["time"]
     ticket["counts"]["exceptions"]["missing_intake_fields"] = len(first["ask_for"])
@@ -81,7 +87,7 @@ def run(name):
     step(7, "person", "Approvals",
          "; ".join(f"{role} {a['name']} {a['decision']}" for role, a in ticket["approvers"].items()), steps)
 
-    runs_dir = tempfile.mkdtemp(prefix="acme-runs-")
+    runs_dir = tempfile.mkdtemp(prefix=f"{scratch_prefix()}-runs-")
     last_message_time = sample["messages"][-1]["time"]
     append_audit_row(request_id, {
         "step": "Request received", "actor_type": "person", "actor": sample["people"]["requester"]["name"],

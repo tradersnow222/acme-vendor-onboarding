@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from scripts.samples import load_sample
+from scripts.sensitive import SensitiveDataError, checked_text
 
 TICKETS_DIR = Path(__file__).resolve().parent.parent / "tickets"
 EXAMPLE = "example: python3 -m scripts.ticket --close VR-0001"
@@ -45,7 +46,7 @@ def create_ticket(request_id, fields, tickets_dir=TICKETS_DIR):
         },
     }
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(ticket, indent=2) + "\n")
+    path.write_text(checked_text(json.dumps(ticket, indent=2) + "\n"))
     return ticket
 
 
@@ -126,7 +127,11 @@ def main():
 
     if args.sample:
         sample = load_sample(args.sample)
-        ticket = create_ticket(sample["request_id"], sample["expected"]["intake"]["fields"], args.dir)
+        try:
+            ticket = create_ticket(sample["request_id"], sample["expected"]["intake"]["fields"], args.dir)
+        except SensitiveDataError as error:
+            print(error)
+            return 1
         print(json.dumps(ticket, indent=2))
         return 0
 
@@ -140,7 +145,11 @@ def main():
     if args.close:
         if not ticket_path(args.close, args.dir).is_file():
             return usage_error(f"no ticket {args.close} in {args.dir}")
-        return close_ticket(args.close, args.dir, args.runs_dir, args.at)
+        try:
+            return close_ticket(args.close, args.dir, args.runs_dir, args.at)
+        except SensitiveDataError as error:
+            print(error)
+            return 1
 
     if args.withdraw:
         if not args.by:
@@ -149,7 +158,11 @@ def main():
             return usage_error("--withdraw requires --reason <text>")
         if not ticket_path(args.withdraw, args.dir).is_file():
             return usage_error(f"no ticket {args.withdraw} in {args.dir}")
-        return withdraw_ticket(args.withdraw, args.dir, args.runs_dir, args.by, args.reason, args.at)
+        try:
+            return withdraw_ticket(args.withdraw, args.dir, args.runs_dir, args.by, args.reason, args.at)
+        except SensitiveDataError as error:
+            print(error)
+            return 1
 
 
 if __name__ == "__main__":

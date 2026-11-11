@@ -1,0 +1,19 @@
+{
+  "company_name": "Acme",
+  "demo": true,
+  "note": "Demo company. Acme is fictional. Every person named here is synthesized.",
+  "people_label": "[SYNTHESIZED]",
+  "stale_after_hours": 20,
+  "always_route": ["manager"],
+  "approvers": {
+    "manager": "Daniel Okafor [SYNTHESIZED], Director of Customer Support",
+    "security": "Lena Hoffmann [SYNTHESIZED], Security & GRC Lead"
+  },
+  "data_sensitivity": {
+    "security_role": "security",
+    "intake_field": "touches_customer_data",
+    "pack_check_flag": "r3_shows_personal_data",
+    "legacy_pack_flags": ["r3_should_show_acme_customer_data"],
+    "question": "Will this vendor touch {company_name} customer data, yes or no?"
+  }
+}

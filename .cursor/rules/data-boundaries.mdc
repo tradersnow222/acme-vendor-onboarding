@@ -13,12 +13,13 @@ alwaysApply: true
 
 ## Labels
 - `[PUBLIC]`: a fact read from a public page, always with its source URL.
-- `[SYNTHESIZED]`: any made-up Acme person, request, message, reply or time. Acme is fictional, so every Acme person is synthesized.
+- `[SYNTHESIZED]`: any made-up person, request, message, reply or time for the company in `config/company.json`. The shipped demo company is fictional, so every demo person is synthesized.
 - `[ASSUMPTION]`: our own math or reading, not the vendor's words (e.g. a pilot cost estimate).
 
 ## Never
 - Real customer data or any employer's confidential data.
-- Real people as Acme staff, or real personal emails or phone numbers.
+- Real people as staff of the company in `config/company.json`, or real personal emails or phone numbers.
+- Bank account numbers, routing numbers, tax IDs (EIN/TIN), or SSNs. Store only a reference such as "W-9 received". See `DATA-HANDLING.md`.
 - API keys or secrets in the repo. The Cursor API key lives only in a secret or environment variable.
 
 ## Reading and writing this repo

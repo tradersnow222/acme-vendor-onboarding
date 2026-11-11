@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from scripts.approvals import overall_decision
+from scripts.sensitive import checked_text
 from scripts.ticket import TICKETS_DIR, read_ticket, ticket_path
 
 RUNS_DIR = Path(__file__).resolve().parent.parent / "runs"
@@ -39,6 +40,7 @@ def append_audit_row(request_id, row, runs_dir=RUNS_DIR):
     path = audit_path(request_id, runs_dir)
     is_new = not path.exists()
     step_id = len(read_audit(request_id, runs_dir)) + 1
+    checked_text(" ".join(str(value) for value in {**row, "step_id": step_id}.values()))
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=COLUMNS)

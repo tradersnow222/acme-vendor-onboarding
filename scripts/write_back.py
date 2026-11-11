@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 
 from scripts.check_pack import check_pack
+from scripts.sensitive import checked_text
 from scripts.ticket import TICKETS_DIR, read_ticket, ticket_path
 
 EXAMPLE = "example: python3 -m scripts.write_back --ticket VR-0001 --pack packs/VR-0001/pack.json"
@@ -13,8 +14,9 @@ EXAMPLE = "example: python3 -m scripts.write_back --ticket VR-0001 --pack packs/
 
 def write_ticket(ticket, request_id, tickets_dir=TICKETS_DIR):
     path = ticket_path(request_id, tickets_dir)
+    text = checked_text(json.dumps(ticket, indent=2) + "\n")
     with tempfile.NamedTemporaryFile("w", dir=path.parent, suffix=".tmp", delete=False) as f:
-        f.write(json.dumps(ticket, indent=2) + "\n")
+        f.write(text)
     os.replace(f.name, path)
 
 

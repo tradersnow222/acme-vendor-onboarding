@@ -2,23 +2,29 @@ import argparse
 import base64
 import json
 import os
+import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime
+from pathlib import Path
 
+from scripts.sensitive import SensitiveDataError, checked_text
 from scripts.status import RUNS_DIR, append_audit_row
 from scripts.ticket import TICKETS_DIR, read_ticket, ticket_path
 
 API_URL = "https://api.cursor.com/v1/agents"
-REPO_URL = "https://github.com/tradersnow222/acme-vendor-onboarding"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ENV = "VENDOR_ONBOARDING_REPO"
 EXAMPLE = "example: python3 -m scripts.launch_research --ticket VR-0001"
 NO_KEY = "CURSOR_API_KEY is not set; export it or run without --live for a dry run"
 EPILOG = """examples:
   python3 -m scripts.launch_research --ticket VR-0001
       dry run: print the request without sending it
   CURSOR_API_KEY=... python3 -m scripts.launch_research --ticket VR-0001 --live
-      launch the research agent and record it on the ticket"""
+      launch the research agent and record it on the ticket
+The repo URL is VENDOR_ONBOARDING_REPO, or git remote origin when that variable is unset."""
 
 
 def build_prompt(ticket):
@@ -36,10 +42,44 @@ def build_prompt(ticket):
     )
 
 
+def normalize_repo_url(url):
+    url = (url or "").strip()
+    if url.startswith("git@"):
+        host, _, path = url[4:].partition(":")
+        url = f"https://{host}/{path}"
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme not in ("http", "https", "ssh") or not parsed.hostname:
+        return url[:-4] if url.endswith(".git") else url
+    host = parsed.hostname
+    if parsed.port:
+        host = f"{host}:{parsed.port}"
+    path = parsed.path[:-4] if parsed.path.endswith(".git") else parsed.path
+    scheme = "https" if parsed.scheme == "ssh" else parsed.scheme
+    return urllib.parse.urlunsplit((scheme, host, path, "", ""))
+
+
+def git_origin_url():
+    try:
+        output = subprocess.check_output(
+            ["git", "config", "--get", "remote.origin.url"],
+            cwd=REPO_ROOT,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return ""
+    return output.strip()
+
+
+def repo_url():
+    raw = os.environ.get(REPO_ENV, "").strip() or git_origin_url()
+    return normalize_repo_url(raw) if raw else ""
+
+
 def build_body(ticket, model=None):
     body = {
         "prompt": {"text": build_prompt(ticket)},
-        "repos": [{"url": REPO_URL, "startingRef": "main"}],
+        "repos": [{"url": repo_url(), "startingRef": "main"}],
         "autoCreatePR": False,
     }
     if model:
@@ -60,7 +100,8 @@ def send_request(body, api_key):
 
 
 def write_ticket(ticket, tickets_dir):
-    ticket_path(ticket["request_id"], tickets_dir).write_text(json.dumps(ticket, indent=2) + "\n")
+    text = checked_text(json.dumps(ticket, indent=2) + "\n")
+    ticket_path(ticket["request_id"], tickets_dir).write_text(text)
 
 
 def print_dry_run(body):
@@ -100,6 +141,9 @@ def main(argv):
         return 0
 
     body = build_body(ticket, args.model)
+    if not body["repos"][0]["url"]:
+        print(f"Set {REPO_ENV} or add a git remote named origin. {EXAMPLE}", file=sys.stderr)
+        return 2
     if not args.live:
         print_dry_run(body)
         return 0
@@ -122,15 +166,19 @@ def main(argv):
         "run_id": response["run"]["id"],
         "launched_at": datetime.now().astimezone().isoformat(timespec="seconds"),
     })
-    write_ticket(ticket, args.tickets_dir)
-    append_audit_row(args.ticket, {
-        "step": "Research launched",
-        "actor_type": "script",
-        "actor": "scripts.launch_research",
-        "timestamp_pt": research["launched_at"],
-        "outcome": f"agent {agent['id']} started",
-        "data_label": "PUBLIC",
-    }, args.runs_dir)
+    try:
+        write_ticket(ticket, args.tickets_dir)
+        append_audit_row(args.ticket, {
+            "step": "Research launched",
+            "actor_type": "script",
+            "actor": "scripts.launch_research",
+            "timestamp_pt": research["launched_at"],
+            "outcome": f"agent {agent['id']} started",
+            "data_label": "PUBLIC",
+        }, args.runs_dir)
+    except SensitiveDataError as error:
+        print(error, file=sys.stderr)
+        return 1
     print(f"{args.ticket}: research agent started: {agent['id']} {agent['url']}")
     return 0
 

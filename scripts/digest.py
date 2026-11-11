@@ -3,6 +3,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from scripts.approvals import load_config
 from scripts.status import ACTOR_TYPES, RUNS_DIR, build_status, read_audit
 from scripts.ticket import TICKETS_DIR, read_ticket
 
@@ -20,7 +21,8 @@ def open_tickets(tickets_dir):
 
 
 def format_digest(tickets, runs_dir, now):
-    lines = [f"Acme vendor digest {now[:10]}: {len(tickets)} open request(s)"]
+    company = load_config()["company_name"]
+    lines = [f"{company} vendor digest {now[:10]}: {len(tickets)} open request(s)"]
     steps = dict.fromkeys(ACTOR_TYPES, 0)
     for ticket in tickets:
         request_id = ticket["request_id"]

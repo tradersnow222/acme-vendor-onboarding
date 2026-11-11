@@ -1,8 +1,10 @@
 import argparse
+import json
 import sys
 from datetime import datetime
 
 from scripts.approvals import content_hash, overall_decision, record_decision
+from scripts.sensitive import SensitiveDataError, checked_text
 from scripts.status import RUNS_DIR, append_audit_row
 from scripts.ticket import TICKETS_DIR, read_ticket, ticket_path
 from scripts.write_back import write_ticket
@@ -65,14 +67,20 @@ def main(argv):
 
     ticket["approvers"][args.role] = {**ticket["approvers"][args.role], **updated[args.role],
                                       "hash": content_hash(ticket)}
-    write_ticket(ticket, args.ticket, args.tickets_dir)
     outcome = f'{args.decision}: "{args.quote}"'
     if args.condition:
         outcome += f"; conditions: {'; '.join(args.condition)}"
-    append_audit_row(args.ticket, {
-        "step": "Approval", "actor_type": "person", "actor": args.name, "timestamp_pt": args.at,
-        "what_they_saw": "pack summary and status", "outcome": outcome, "est_cost": "~0", "data_label": "SYNTHESIZED",
-    }, args.runs_dir)
+    try:
+        checked_text(json.dumps(ticket))
+        checked_text(outcome)
+        write_ticket(ticket, args.ticket, args.tickets_dir)
+        append_audit_row(args.ticket, {
+            "step": "Approval", "actor_type": "person", "actor": args.name, "timestamp_pt": args.at,
+            "what_they_saw": "pack summary and status", "outcome": outcome, "est_cost": "~0", "data_label": "SYNTHESIZED",
+        }, args.runs_dir)
+    except SensitiveDataError as error:
+        print(f"{args.ticket}: not recorded: {error}")
+        return 1
     overall = overall_decision(ticket["approvers"])
     print(f"{args.ticket}: recorded {args.role} {args.name} {args.decision}; overall {overall}")
     return 0

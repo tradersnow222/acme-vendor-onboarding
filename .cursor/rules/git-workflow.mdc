@@ -1,5 +1,5 @@
 ---
-description: Git workflow rules for acme-vendor-onboarding repository
+description: Git workflow rules for this repository
 alwaysApply: true
 ---
 
@@ -35,4 +35,4 @@ pull request (Matt reviews)
 main (Matt merges)
 ```
 
-These rules ensure code quality, traceability, and collaborative review for the Acme vendor onboarding automation project.
+These rules ensure code quality, traceability, and collaborative review for this vendor onboarding project.
