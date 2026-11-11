@@ -8,7 +8,7 @@ alwaysApply: false
 ## Every field stores where its answer came from
 Each field has `value`, `raw_text` (the requester's exact words), `from` (`requester` or `research`) and `confirmed` (true/false).
 
-## The five required fields (from Maya's email)
+## The five required fields
 | Field | Valid value | Not valid |
 |---|---|---|
 | `vendor_legal_name` | Legal entity name, e.g. "Zendesk, Inc." May come from research (pack R1) only with a source URL. | Brand name only ("Zendesk") with no source URL |

@@ -89,6 +89,12 @@ class StaleTest(unittest.TestCase):
         nudge_at = sample["expected"]["status"]["nudges"][0]["at"]
         config = load_config()
         self.assertEqual(config["stale_after_hours"], 20)
+        self.assertEqual(config["company_name"], "Acme")
+        self.assertIs(config["demo"], True)
+        self.assertIn("[SYNTHESIZED]", config["approvers"]["manager"])
+        self.assertIn("[SYNTHESIZED]", config["approvers"]["security"])
+        self.assertEqual(config["data_sensitivity"]["security_role"], "security")
+        self.assertEqual(config["data_sensitivity"]["intake_field"], "touches_customer_data")
         self.assertIs(is_stale(approvers["security"], sent_at, "2026-10-08T16:40:00-07:00", config), False)
         self.assertIs(is_stale(approvers["security"], sent_at, nudge_at, config), True)
         self.assertEqual(approvers["security"]["decision"], "waiting")

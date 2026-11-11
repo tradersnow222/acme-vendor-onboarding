@@ -74,6 +74,20 @@ class RouteRulesTest(unittest.TestCase):
             ["intake check has not passed", "pack check has not passed"],
         )
 
+    def test_legacy_pack_flag_still_adds_security(self):
+        from scripts.route import r3_from_pack
+        self.assertIs(r3_from_pack({"r3_should_show_acme_customer_data": True}), True)
+        result = route_request(**figma_inputs(r3_shows_customer_data=True))
+        self.assertEqual(result["route"], ["manager", "security"])
+        self.assertIs(result["mismatch"], True)
+
+    def test_extra_always_route_role_is_included(self):
+        from scripts.approvals import load_config
+        config = load_config()
+        config = {**config, "always_route": ["manager", "finance"]}
+        result = route_request(**figma_inputs(), config=config)
+        self.assertEqual(result["route"], ["manager", "finance"])
+
 
 if __name__ == "__main__":
     unittest.main()

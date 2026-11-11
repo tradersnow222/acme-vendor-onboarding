@@ -12,6 +12,7 @@ from pathlib import Path
 from scripts import write_back
 from scripts.check_pack import check_pack
 from scripts.launch_research import API_URL, NO_KEY
+from scripts.sensitive import SensitiveDataError, checked_text
 from scripts.status import RUNS_DIR, append_audit_row
 from scripts.ticket import TICKETS_DIR, read_ticket, ticket_path
 
@@ -131,26 +132,40 @@ def main(argv):
         print(f"{args.ticket}: pack is for {pack.get('request_id')!r}, not {args.ticket}; nothing written")
         return 1
 
+    try:
+        pack_text = checked_text(json.dumps(pack, indent=2) + "\n")
+        log_text = checked_text(fetch_log) if fetch_log is not None else None
+    except SensitiveDataError as error:
+        print(error)
+        return 1
     pack_dir = Path(args.packs_dir) / args.ticket
     pack_dir.mkdir(parents=True, exist_ok=True)
     pack_path = pack_dir / "pack.json"
-    pack_path.write_text(json.dumps(pack, indent=2) + "\n")
-    if fetch_log is not None:
-        (pack_dir / "fetch_log.csv").write_text(fetch_log)
-    code = write_back.main(["--ticket", args.ticket, "--pack", str(pack_path), "--tickets-dir", str(args.tickets_dir)])
+    pack_path.write_text(pack_text)
+    if log_text is not None:
+        (pack_dir / "fetch_log.csv").write_text(log_text)
+    try:
+        code = write_back.main(["--ticket", args.ticket, "--pack", str(pack_path), "--tickets-dir", str(args.tickets_dir)])
+    except SensitiveDataError as error:
+        print(error)
+        return 1
     result = check_pack(pack["rows"], pack_dir / "fetch_log.csv")
     if result["passed"]:
         outcome = f"pack check PASS ({len(pack['rows'])} rows, {result['not_found']} not_found)"
     else:
         outcome = f"pack check FAIL: {'; '.join(result['reasons'])}"
-    append_audit_row(args.ticket, {
-        "step": "Research pack built",
-        "actor_type": "model",
-        "actor": f"Cursor cloud agent {'reply-file' if args.reply_file else research['agent_id']}",
-        "timestamp_pt": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "outcome": outcome,
-        "data_label": "PUBLIC",
-    }, args.runs_dir)
+    try:
+        append_audit_row(args.ticket, {
+            "step": "Research pack built",
+            "actor_type": "model",
+            "actor": f"Cursor cloud agent {'reply-file' if args.reply_file else research['agent_id']}",
+            "timestamp_pt": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "outcome": outcome,
+            "data_label": "PUBLIC",
+        }, args.runs_dir)
+    except SensitiveDataError as error:
+        print(error)
+        return 1
     return code
 
 

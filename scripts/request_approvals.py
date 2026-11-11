@@ -5,6 +5,7 @@ from datetime import date, datetime
 from scripts.approvals import CONFIG_PATH, cancel_changed_approvals, content_hash, load_config
 from scripts.intake_check import check_intake
 from scripts.route import route_request
+from scripts.sensitive import SensitiveDataError
 from scripts.status import RUNS_DIR, append_audit_row
 from scripts.ticket import TICKETS_DIR, read_ticket, ticket_path
 from scripts.write_back import write_ticket
@@ -72,7 +73,7 @@ def main(argv):
                         help="date for the intake check, YYYY-MM-DD (default: the date part of --at)")
     parser.add_argument("--reset-approvers", action="store_true",
                         help="refill waiting approvers from the config and clear their request times first")
-    parser.add_argument("--config", default=CONFIG_PATH, help="approvals config with the named approver per role")
+    parser.add_argument("--config", default=CONFIG_PATH, help="company config with the named approver per role")
     args = parser.parse_args(argv)
 
     if not args.ticket:
@@ -99,39 +100,43 @@ def main(argv):
         print(f"{args.ticket}: approvals already requested: {times}")
         return 0
 
-    write_ticket(ticket, args.ticket, args.tickets_dir)
-    for role in reset:
-        append_audit_row(args.ticket, {
-            "step": "Approvers reset",
-            "actor_type": "script",
-            "actor": "scripts.request_approvals",
-            "timestamp_pt": args.at,
-            "outcome": f"{role} refilled from config",
-            "est_cost": "~0",
-            "data_label": "SYNTHESIZED",
-        }, args.runs_dir)
-    for role, old in cancelled:
-        conditions = f"; conditions: {'; '.join(old['conditions'])}" if old["conditions"] else ""
-        append_audit_row(args.ticket, {
-            "step": "Approval cancelled",
-            "actor_type": "script",
-            "actor": "scripts.request_approvals",
-            "timestamp_pt": args.at,
-            "outcome": f"{role} {old['name']} {old['decision']} at {old['at']}{conditions}; "
-                       "reason: intake or pack changed after approval",
-            "est_cost": "~0",
-            "data_label": "SYNTHESIZED",
-        }, args.runs_dir)
-    for role in requested:
-        append_audit_row(args.ticket, {
-            "step": "Approval requested",
-            "actor_type": "script",
-            "actor": "scripts.request_approvals",
-            "timestamp_pt": args.at,
-            "outcome": f"{role} asked",
-            "est_cost": "~0",
-            "data_label": "SYNTHESIZED",
-        }, args.runs_dir)
+    try:
+        write_ticket(ticket, args.ticket, args.tickets_dir)
+        for role in reset:
+            append_audit_row(args.ticket, {
+                "step": "Approvers reset",
+                "actor_type": "script",
+                "actor": "scripts.request_approvals",
+                "timestamp_pt": args.at,
+                "outcome": f"{role} refilled from config",
+                "est_cost": "~0",
+                "data_label": "SYNTHESIZED",
+            }, args.runs_dir)
+        for role, old in cancelled:
+            conditions = f"; conditions: {'; '.join(old['conditions'])}" if old["conditions"] else ""
+            append_audit_row(args.ticket, {
+                "step": "Approval cancelled",
+                "actor_type": "script",
+                "actor": "scripts.request_approvals",
+                "timestamp_pt": args.at,
+                "outcome": f"{role} {old['name']} {old['decision']} at {old['at']}{conditions}; "
+                           "reason: intake or pack changed after approval",
+                "est_cost": "~0",
+                "data_label": "SYNTHESIZED",
+            }, args.runs_dir)
+        for role in requested:
+            append_audit_row(args.ticket, {
+                "step": "Approval requested",
+                "actor_type": "script",
+                "actor": "scripts.request_approvals",
+                "timestamp_pt": args.at,
+                "outcome": f"{role} asked",
+                "est_cost": "~0",
+                "data_label": "SYNTHESIZED",
+            }, args.runs_dir)
+    except SensitiveDataError as error:
+        print(error)
+        return 1
     asked = ", ".join(describe(role, ticket["approvers"][role]["name"]) for role in requested)
     print(f"{args.ticket}: approval requested from {asked} at {args.at}")
     return 0

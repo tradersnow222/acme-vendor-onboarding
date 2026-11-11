@@ -36,7 +36,7 @@ Every change to this repository must follow these strict rules:
 
 ## Repository Purpose
 
-This repository implements a governed vendor onboarding workflow for Acme, Inc.:
+This repository implements a governed vendor onboarding workflow. The company name, approvers, stale-after hours, and the data-sensitivity rule live in `config/company.json`. The file ships with demo values for Acme, a fictional company with synthesized people.
 
 - **Intake**: Collect five required fields from requesters
 - **Research**: Build research packs from public sources via automated cloud agent
@@ -51,12 +51,12 @@ The workflow is built with:
 
 - **Public data only**: Website content, trust pages, public pricing, public documentation
 - **Synthesized data**: Sample requesters, approvers, and vendors clearly labeled as synthesized
-- **No real data**: Never use actual customer data or Acme confidential information
+- **No real data**: Never use actual customer data or the forking company's confidential information
 
 ## Approval Policy
 
 - **Manager approval required** for every vendor
-- **Security approval required** when vendor will touch customer data
+- **Security approval required** when the data-sensitivity rule in `config/company.json` says so
 - **Named person only**: Silence never counts as approval
 - **Audit trail**: Every approval records who, when, what they saw, and cost
 

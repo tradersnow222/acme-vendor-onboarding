@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
-CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "approvals.json"
+CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "company.json"
 
 TRANSITIONS = {
     "waiting": {"approved", "approved_with_conditions", "rejected"},

@@ -1,9 +1,25 @@
 import sys
 
+from scripts.approvals import load_config
 from scripts.samples import load_sample
 
 
-def route_request(intake_fields, r3_shows_customer_data, intake_passed, pack_passed):
+def _rule(config):
+    return config.get("data_sensitivity") or {}
+
+
+def r3_from_pack(pack, config=None):
+    rule = _rule(config or load_config())
+    if "check" in pack:
+        return pack["check"].get(rule.get("pack_check_flag", "r3_shows_personal_data"))
+    for key in rule.get("legacy_pack_flags") or []:
+        if key in pack:
+            return pack[key]
+    return None
+
+
+def route_request(intake_fields, r3_shows_customer_data, intake_passed, pack_passed, config=None):
+    config = config or load_config()
     blocked_reasons = []
     if not intake_passed:
         blocked_reasons.append("intake check has not passed")
@@ -12,25 +28,23 @@ def route_request(intake_fields, r3_shows_customer_data, intake_passed, pack_pas
     if blocked_reasons:
         return {"route": [], "blocked": True, "blocked_reasons": blocked_reasons, "mismatch": False}
 
-    intake_says = intake_fields["touches_customer_data"]["value"] is True
+    rule = _rule(config)
+    field = rule.get("intake_field", "touches_customer_data")
+    security_role = rule.get("security_role", "security")
+    intake_says = intake_fields[field]["value"] is True
     mismatch = r3_shows_customer_data is not None and intake_says != r3_shows_customer_data
-    route = ["manager"]
-    if intake_says or r3_shows_customer_data:
-        route.append("security")
+    route = list(config.get("always_route") or ["manager"])
+    if (intake_says or r3_shows_customer_data) and security_role not in route:
+        route.append(security_role)
     return {"route": route, "blocked": False, "blocked_reasons": [], "mismatch": mismatch}
 
 
-def inputs_from_sample(sample):
+def inputs_from_sample(sample, config=None):
     expected = sample["expected"]
-    pack = expected["pack"]
-    if "check" in pack:
-        r3 = pack["check"]["r3_shows_personal_data"]
-    else:
-        r3 = pack.get("r3_should_show_acme_customer_data")
     gates = expected["routing"]["gate_checks"]
     return {
         "intake_fields": expected["intake"]["fields"],
-        "r3_shows_customer_data": r3,
+        "r3_shows_customer_data": r3_from_pack(expected["pack"], config),
         "intake_passed": gates["intake_complete"],
         "pack_passed": gates["pack_complete"],
     }

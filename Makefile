@@ -1,7 +1,7 @@
 .PHONY: help setup validate research route status audit clean test run
 
 help:
-	@echo "Acme Vendor Onboarding - Available Commands"
+	@echo "Vendor onboarding - Available Commands"
 	@echo ""
 	@echo "  make help       - Show this help message"
 	@echo "  make setup      - Set up project structure"

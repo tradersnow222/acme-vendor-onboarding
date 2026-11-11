@@ -10,8 +10,8 @@ Route only when all five intake fields are valid (`intake-policy.mdc`) and the p
 
 ## Who approves
 - The requester's manager: always.
-- Security: also, when intake `touches_customer_data = true` OR pack R3 shows the vendor would hold customer or personal data.
-- If intake and R3 disagree, flag the mismatch and still route to Security.
+- Security: also, when `config/company.json` `data_sensitivity` says so. In the demo config that is intake `touches_customer_data = true` OR the pack check flag is true (R3 shows the vendor would hold customer or personal data).
+- If intake and that pack flag disagree, flag the mismatch and still route to Security.
 
 ## What counts as an approval
 - Only an explicit decision from the named approver, recorded with their name, role, decision, timestamp, and any conditions.

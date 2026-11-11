@@ -4,29 +4,42 @@ import sys
 from datetime import date
 from pathlib import Path
 
+from scripts.approvals import load_config
 from scripts.intake_check import check_intake
 from scripts.samples import load_sample
+from scripts.sensitive import REFERENCE_MESSAGE
 
 EXAMPLE = "example: python3 -m scripts.followup --fields fields.json --today 2026-10-09 --rounds 0"
 MAX_ROUNDS = 2
 QUESTIONS = {
     "vendor_legal_name": "What is the vendor's legal company name?",
     "website": "What is the vendor's website address?",
-    "touches_customer_data": "Will this vendor touch Acme customer data, yes or no?",
     "business_owner": "Who is the business owner? Please give a named person, not a team.",
     "target_start_date": "What date should the vendor start, as YYYY-MM-DD?",
 }
 
 
-def pick_followups(intake_result, rounds_done):
+def question_for(field, sensitive=False, config=None):
+    if sensitive:
+        return REFERENCE_MESSAGE
+    config = config or load_config()
+    rule = config.get("data_sensitivity") or {}
+    if field == rule.get("intake_field", "touches_customer_data"):
+        template = rule.get("question") or "Will this vendor touch {company_name} customer data, yes or no?"
+        return template.format(company_name=config.get("company_name", "the company"))
+    return QUESTIONS[field]
+
+
+def pick_followups(intake_result, rounds_done, config=None):
     if intake_result["complete"]:
         return {"questions": [], "exception": False}
     if not intake_result["ask_for"] and not intake_result["confirm"]:
         return {"questions": [], "exception": False}
     if rounds_done >= MAX_ROUNDS:
         return {"questions": [], "exception": True}
+    sensitive = set(intake_result.get("sensitive") or [])
     questions = [
-        {"field": field, "kind": kind, "question": QUESTIONS[field]}
+        {"field": field, "kind": kind, "question": question_for(field, field in sensitive, config)}
         for kind, key in (("ask", "ask_for"), ("confirm", "confirm"))
         for field in intake_result[key]
     ]

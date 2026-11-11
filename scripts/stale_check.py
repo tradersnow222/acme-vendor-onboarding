@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from scripts.approvals import is_stale, load_config
+from scripts.sensitive import SensitiveDataError
 from scripts.status import RUNS_DIR, append_audit_row
 from scripts.ticket import TICKETS_DIR, read_ticket
 from scripts.write_back import write_ticket
@@ -66,16 +67,20 @@ def main(argv):
                 continue
             approver["nudged_at"] = args.now
             ticket["counts"]["nudges"] += 1
-            write_ticket(ticket, request_id, args.tickets_dir)
-            append_audit_row(request_id, {
-                "step": "Stale-approval nudge",
-                "actor_type": "script",
-                "actor": "scripts.stale_check",
-                "timestamp_pt": args.now,
-                "outcome": f"nudge due for {role}; silence is not a yes",
-                "est_cost": "~0",
-                "data_label": "SYNTHESIZED",
-            }, args.runs_dir)
+            try:
+                write_ticket(ticket, request_id, args.tickets_dir)
+                append_audit_row(request_id, {
+                    "step": "Stale-approval nudge",
+                    "actor_type": "script",
+                    "actor": "scripts.stale_check",
+                    "timestamp_pt": args.now,
+                    "outcome": f"nudge due for {role}; silence is not a yes",
+                    "est_cost": "~0",
+                    "data_label": "SYNTHESIZED",
+                }, args.runs_dir)
+            except SensitiveDataError as error:
+                print(error)
+                return 1
     return 0
 
 

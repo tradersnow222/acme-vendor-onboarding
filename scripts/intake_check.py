@@ -4,6 +4,7 @@ from datetime import date
 from urllib.parse import urlparse
 
 from scripts.samples import load_sample
+from scripts.sensitive import REFERENCE_MESSAGE, find_sensitive
 
 FIELDS = ["vendor_legal_name", "website", "touches_customer_data", "business_owner", "target_start_date"]
 LEGAL_SUFFIX = re.compile(r"\b(inc|llc|ltd|limited|corp|corporation|co|gmbh|plc|ag|sa|bv|lp|llp)\.?$", re.I)
@@ -49,6 +50,15 @@ def _start_date_ok(field, today):
         return False
 
 
+def _field_text(field):
+    parts = []
+    for key in ("value", "raw_text"):
+        value = field.get(key)
+        if isinstance(value, str):
+            parts.append(value)
+    return "\n".join(parts)
+
+
 def check_intake(fields, today):
     checks = {
         "vendor_legal_name": _legal_name_ok,
@@ -58,13 +68,21 @@ def check_intake(fields, today):
         "target_start_date": lambda field: _start_date_ok(field, today),
     }
     result = {"ask_for": [], "confirm": [], "fill_from_research": []}
+    sensitive = []
     for name in FIELDS:
         field = fields.get(name) or {}
+        if find_sensitive(_field_text(field)):
+            result["ask_for"].append(name)
+            sensitive.append(name)
+            continue
         if not checks[name](field):
             result["fill_from_research" if name == "vendor_legal_name" else "ask_for"].append(name)
         elif not field.get("confirmed"):
             result["confirm"].append(name)
     result["complete"] = not any(result.values())
+    if sensitive:
+        result["sensitive"] = sensitive
+        result["message"] = REFERENCE_MESSAGE
     return result
 
 
@@ -76,6 +94,8 @@ def main(argv=None):
     sample = load_sample(args.sample)
     result = check_intake(sample["expected"]["intake"]["fields"], args.today)
     print(f"{sample['request_id']}: intake {'complete' if result['complete'] else 'incomplete'}")
+    if result.get("message"):
+        print(result["message"])
     for key in ("ask_for", "confirm", "fill_from_research"):
         print(f"  {key.replace('_', ' ')}: {', '.join(result[key]) or 'none'}")
 
