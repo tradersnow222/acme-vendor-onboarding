@@ -12,13 +12,16 @@ Prerequisites: Python 3.9 or newer, git, and make. No pip installs. Run every co
 
 ### Environment variables
 
-Set at most these. The sample walk below needs none of them.
+The sample walk below needs none of them. Slack and email notices stay off until the `APPROVAL_` variables in [DATA-HANDLING.md](DATA-HANDLING.md) are set.
 
 | Variable | When |
 |---|---|
 | `VENDOR_ONBOARDING_CONFIG` | Path to your company JSON. Default is `config/company.json`. See [PILOT.md](PILOT.md). |
 | `VENDOR_ONBOARDING_REPO` | Repo URL the research agent clones. Default is `git remote get-url origin`, with any credentials removed. |
 | `CURSOR_API_KEY` | Only if you pass `--live`. Dry run is the default and sends nothing. |
+| `APPROVAL_SLACK_WEBHOOK_URL` | Slack incoming webhook for an approval notice. Unset skips Slack. |
+| `APPROVAL_SMTP_HOST` | SMTP host for an approval notice. Unset skips email. Port, user, password, and from are in [DATA-HANDLING.md](DATA-HANDLING.md). |
+| `APPROVAL_REVIEW_BASE_URL` | Prefix of the review link in an approval notice. |
 
 ### Set your company
 

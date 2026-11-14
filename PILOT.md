@@ -18,7 +18,7 @@ Pick one. Do not do both.
 cp examples/company.sample.json config/company.json
 ```
 
-Then change `company_name`, `approvers`, and `stale_after_hours` in `config/company.json`. Leave `VENDOR_ONBOARDING_CONFIG` unset so the scripts read that file.
+Then change `company_name`, `approvers`, `approver_emails`, and `stale_after_hours` in `config/company.json`. Leave `VENDOR_ONBOARDING_CONFIG` unset so the scripts read that file.
 
 **Try the sample unchanged.** Keep the Acme demo file and point at the sample:
 
@@ -39,6 +39,7 @@ Fill these fields:
 | `stale_after_hours` | Hours of silence before a nudge. Silence is never a yes. |
 | `always_route` | Roles that approve every vendor. Keep `manager`. |
 | `approvers` | One string per role: `Name [SYNTHESIZED], Title`. |
+| `approver_emails` | Optional address per role, used only when email notices are on. The sample uses `@example.com` placeholders. Replace them before you turn email on. |
 | `data_sensitivity` | When to add the security role. The notes in the sample say what each key does. |
 
 The sample manager string, which the command below records, is `Priya Shah [SYNTHESIZED], Head of Operations`. If you edit `approvers.manager`, use your string in that command instead.
@@ -50,12 +51,23 @@ Other environment variables, only if you need them:
 | `VENDOR_ONBOARDING_CONFIG` | Path to your company JSON. Unset means `config/company.json`. |
 | `VENDOR_ONBOARDING_REPO` | Repo URL the research agent would clone. Default is `git remote get-url origin`, with any credentials removed. Leave it unset for this pilot. |
 | `CURSOR_API_KEY` | Only for `--live`. Do not set it for this walkthrough. |
+| `APPROVAL_SLACK_WEBHOOK_URL` | Slack incoming webhook. Placeholder: `https://hooks.slack.com/services/EXAMPLE/EXAMPLE/EXAMPLE`. Unset skips Slack. Leave unset for this walkthrough. |
+| `APPROVAL_SMTP_HOST` | SMTP host. Placeholder: `smtp.example.com`. Unset skips email. |
+| `APPROVAL_SMTP_PORT` | SMTP port. Placeholder: `587`. |
+| `APPROVAL_SMTP_USER` | SMTP username. Placeholder: `notices@example.com`. |
+| `APPROVAL_SMTP_PASSWORD` | SMTP password. Placeholder: `replace-me`. |
+| `APPROVAL_SMTP_FROM` | From address. Placeholder: `notices@example.com`. |
+| `APPROVAL_REVIEW_BASE_URL` | Review link prefix. Placeholder: `https://reviews.example.com`. The link is this prefix plus the request id. |
+
+Email stays off until host, port, user, password, and from are all set. Leave every `APPROVAL_` variable unset for this walkthrough, so nothing is sent.
 
 ## 2. What you may type, and what you must not
 
 A review may hold a vendor name, a contact (the named business owner), the product, the use case, and review notes (the approver's words and any conditions).
 
 Never give it bank details, EIN/tax IDs, SSNs, passwords, contract PDFs, or customer data. Intake rejects a bank account number, a routing number, an EIN, a TIN, or an SSN and stores nothing. That rejection is covered by `tests/test_sensitive.py`. A reference such as `W-9 received` is the right substitute. See [DATA-HANDLING.md](DATA-HANDLING.md).
+
+An approval notice, when Slack or email is on, carries the vendor name, the decision needed, the review link, and the approver name and address. It never carries bank details, EIN/tax IDs, SSNs, passwords, or contract contents.
 
 ## 3. Run one review
 
@@ -118,6 +130,6 @@ The sample decision time is 2026-10-09. A ticket created on a later day and clos
 ## Limits
 
 - The Figma pack text was written for the Acme demo, so a few sentences in the pack still say Acme. Your company name is the one in the config. The digest is where you see it.
-- This pilot does not send Slack or email.
+- Slack and email notices stay off unless the `APPROVAL_` variables above are set. This walkthrough leaves them unset, so nothing is sent. A failed send does not stop the review.
 - Do not pass `--live`. Dry run is the whole research step.
 - The nudge timer is `stale_after_hours` from your config (48 in the sample, 20 in the Acme demo). Silence only nudges. It never counts as approval.
