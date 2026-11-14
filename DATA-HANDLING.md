@@ -41,7 +41,7 @@ The forking company is responsible for its own storage: where these folders sit,
 
 | Data | Where | Committed? |
 |---|---|---|
-| Company name, approvers, stale-after hours, data-sensitivity rule | `config/company.json` | Yes. The shipped file is demo data for Acme. |
+| Company name, approvers, approver_emails, stale-after hours, data-sensitivity rule | `config/company.json` | Yes. The shipped file is demo data for Acme. |
 | Example company config for a fork | `examples/company.sample.json` | Yes. Fictional company, synthesized people. Copy it over `config/company.json`. |
 | Sample requests and sample packs | `data/samples/` | Yes. Public vendor facts, or synthesized people and messages. |
 | Ticket (intake, route, decisions) | `tickets/<id>.json` | No |
