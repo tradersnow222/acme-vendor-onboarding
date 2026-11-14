@@ -9,6 +9,10 @@
     "manager": "Daniel Okafor [SYNTHESIZED], Director of Customer Support",
     "security": "Lena Hoffmann [SYNTHESIZED], Security & GRC Lead"
   },
+  "approver_emails": {
+    "manager": "daniel.okafor@example.com",
+    "security": "lena.hoffmann@example.com"
+  },
   "data_sensitivity": {
     "security_role": "security",
     "intake_field": "touches_customer_data",

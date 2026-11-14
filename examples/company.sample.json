@@ -9,6 +9,10 @@
     "manager": "Priya Shah [SYNTHESIZED], Head of Operations",
     "security": "Evan Cho [SYNTHESIZED], Security Lead"
   },
+  "approver_emails": {
+    "manager": "priya.shah@example.com",
+    "security": "evan.cho@example.com"
+  },
   "data_sensitivity": {
     "security_role": "security",
     "intake_field": "touches_customer_data",
@@ -24,6 +28,7 @@
     "stale_after_hours": "Hours a waiting approver sits in silence before a nudge. Silence is never an approval. This sample uses 48.",
     "always_route": "Role names that approve every vendor. manager belongs here.",
     "approvers": "One string per role, shaped Name [SYNTHESIZED], Title. Keys must match always_route and data_sensitivity.security_role. The record_approval --name value is this whole string.",
+    "approver_emails": "Optional address per role for the email notice. The sample uses example.com placeholders. Replace them before turning email on. Unused while email is off.",
     "data_sensitivity.security_role": "Role added when the intake field or the pack flag says the vendor would hold customer or personal data.",
     "data_sensitivity.intake_field": "Intake field that answers the customer-data question. Leave touches_customer_data unless you change the intake check.",
     "data_sensitivity.pack_check_flag": "Pack check key for the same question. The shipped packs use r3_shows_personal_data.",

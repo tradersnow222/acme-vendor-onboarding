@@ -2,6 +2,7 @@ import argparse
 import sys
 from datetime import date, datetime
 
+from scripts.approval_notice import notify_requested
 from scripts.approvals import CONFIG_ENV, cancel_changed_approvals, content_hash, load_config
 from scripts.intake_check import check_intake
 from scripts.route import route_request
@@ -139,6 +140,10 @@ def main(argv):
     except SensitiveDataError as error:
         print(error)
         return 1
+    try:
+        notify_requested(ticket, requested, config)
+    except Exception as error:
+        print(f"approval notice: failed for {args.ticket}: {type(error).__name__}", file=sys.stderr)
     asked = ", ".join(describe(role, ticket["approvers"][role]["name"]) for role in requested)
     print(f"{args.ticket}: approval requested from {asked} at {args.at}")
     return 0
