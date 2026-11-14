@@ -4,6 +4,8 @@ A company can fork this repo and run vendor onboarding on its own machine: check
 
 Acme is a demo company with synthesized people. `config/company.json` and `data/samples/` ship filled with those demo values.
 
+To run one review with your own company, follow [PILOT.md](PILOT.md).
+
 ## Quickstart
 
 Prerequisites: Python 3.9 or newer, git, and make. No pip installs. Run every command from the repo root.
@@ -14,6 +16,7 @@ Set at most these. The sample walk below needs none of them.
 
 | Variable | When |
 |---|---|
+| `VENDOR_ONBOARDING_CONFIG` | Path to your company JSON. Default is `config/company.json`. See [PILOT.md](PILOT.md). |
 | `VENDOR_ONBOARDING_REPO` | Repo URL the research agent clones. Default is `git remote get-url origin`, with any credentials removed. |
 | `CURSOR_API_KEY` | Only if you pass `--live`. Dry run is the default and sends nothing. |
 
