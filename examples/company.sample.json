@@ -1,0 +1,34 @@
+{
+  "company_name": "Northwind Goods",
+  "demo": false,
+  "note": "Example company for a fork. Northwind Goods is fictional. Every person named here is synthesized.",
+  "people_label": "[SYNTHESIZED]",
+  "stale_after_hours": 48,
+  "always_route": ["manager"],
+  "approvers": {
+    "manager": "Priya Shah [SYNTHESIZED], Head of Operations",
+    "security": "Evan Cho [SYNTHESIZED], Security Lead"
+  },
+  "data_sensitivity": {
+    "security_role": "security",
+    "intake_field": "touches_customer_data",
+    "pack_check_flag": "r3_shows_personal_data",
+    "legacy_pack_flags": [],
+    "question": "Will this vendor touch {company_name} customer data, yes or no?"
+  },
+  "_comments": {
+    "company_name": "Your company's name. The daily digest prints this. Northwind Goods is fictional; replace it.",
+    "demo": "true only for the shipped Acme demo in config/company.json. A fork sets false.",
+    "note": "One line on who this file is for. Do not put customer data or secrets here.",
+    "people_label": "Keep [SYNTHESIZED] while the names below are examples. Real approvers use their own names.",
+    "stale_after_hours": "Hours a waiting approver sits in silence before a nudge. Silence is never an approval. This sample uses 48.",
+    "always_route": "Role names that approve every vendor. manager belongs here.",
+    "approvers": "One string per role, shaped Name [SYNTHESIZED], Title. Keys must match always_route and data_sensitivity.security_role. The record_approval --name value is this whole string.",
+    "data_sensitivity.security_role": "Role added when the intake field or the pack flag says the vendor would hold customer or personal data.",
+    "data_sensitivity.intake_field": "Intake field that answers the customer-data question. Leave touches_customer_data unless you change the intake check.",
+    "data_sensitivity.pack_check_flag": "Pack check key for the same question. The shipped packs use r3_shows_personal_data.",
+    "data_sensitivity.legacy_pack_flags": "Older pack keys to treat as that flag. Empty for a new company. The Acme demo file lists one old key.",
+    "data_sensitivity.question": "Asked when the intake field is missing. {company_name} is replaced with company_name.",
+    "_comments": "Notes for the person filling this file. Scripts ignore this key. The file is ordinary JSON: copy it, no code changes."
+  }
+}

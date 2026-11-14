@@ -40,7 +40,10 @@ class SensitivePatternTest(unittest.TestCase):
                 self.assertEqual(find_sensitive(text), [])
 
     def test_samples_and_company_config_are_clean(self):
-        paths = list(SAMPLES_DIR.iterdir()) + [REPO / "config" / "company.json"]
+        paths = list(SAMPLES_DIR.iterdir()) + [
+            REPO / "config" / "company.json",
+            REPO / "examples" / "company.sample.json",
+        ]
         for path in paths:
             if path.is_file() and path.suffix in {".json", ".csv", ".md"}:
                 with self.subTest(path=path.name):
