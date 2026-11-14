@@ -1,10 +1,13 @@
 import hashlib
 import json
+import os
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "company.json"
+# A fork sets this to its own JSON file. Unset, scripts read the demo config.
+CONFIG_ENV = "VENDOR_ONBOARDING_CONFIG"
 
 TRANSITIONS = {
     "waiting": {"approved", "approved_with_conditions", "rejected"},
@@ -16,7 +19,9 @@ TRANSITIONS = {
 BLOCKED_NAME_WORDS = {"anonymous", "bot", "agent"}
 
 
-def load_config(path=CONFIG_PATH):
+def load_config(path=None):
+    if not path:
+        path = os.environ.get(CONFIG_ENV, "").strip() or CONFIG_PATH
     return json.loads(Path(path).read_text())
 
 

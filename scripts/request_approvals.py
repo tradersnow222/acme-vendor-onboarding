@@ -2,7 +2,7 @@ import argparse
 import sys
 from datetime import date, datetime
 
-from scripts.approvals import CONFIG_PATH, cancel_changed_approvals, content_hash, load_config
+from scripts.approvals import CONFIG_ENV, cancel_changed_approvals, content_hash, load_config
 from scripts.intake_check import check_intake
 from scripts.route import route_request
 from scripts.sensitive import SensitiveDataError
@@ -40,10 +40,10 @@ def reset_approvers(ticket, names):
     return reset
 
 
-def request_approvals(ticket, at, today, names):
+def request_approvals(ticket, at, today, names, config=None):
     intake_passed = check_intake(ticket["intake"], today)["complete"]
     pack_passed = ticket["research"].get("status") == "done"
-    result = route_request(ticket["intake"], None, intake_passed, pack_passed)
+    result = route_request(ticket["intake"], None, intake_passed, pack_passed, config)
     if result["blocked"]:
         return result, []
     ticket["route"] = result["route"]
@@ -73,7 +73,8 @@ def main(argv):
                         help="date for the intake check, YYYY-MM-DD (default: the date part of --at)")
     parser.add_argument("--reset-approvers", action="store_true",
                         help="refill waiting approvers from the config and clear their request times first")
-    parser.add_argument("--config", default=CONFIG_PATH, help="company config with the named approver per role")
+    parser.add_argument("--config", default=None,
+                        help=f"company config JSON (default: ${CONFIG_ENV} or config/company.json)")
     args = parser.parse_args(argv)
 
     if not args.ticket:
@@ -88,10 +89,11 @@ def main(argv):
         return usage_error(f"--at needs ISO 8601 with a UTC offset: {args.at!r}")
 
     ticket = read_ticket(args.ticket, args.tickets_dir)
-    names = load_config(args.config).get("approvers", {})
+    config = load_config(args.config)
+    names = config.get("approvers", {})
     reset = reset_approvers(ticket, names) if args.reset_approvers else []
     cancelled = cancel_changed_approvals(ticket["approvers"], content_hash(ticket))
-    result, requested = request_approvals(ticket, args.at, args.today or at_time.date(), names)
+    result, requested = request_approvals(ticket, args.at, args.today or at_time.date(), names, config)
     if result["blocked"]:
         print(f"{args.ticket}: blocked: {'; '.join(result['blocked_reasons'])}")
         return 1
