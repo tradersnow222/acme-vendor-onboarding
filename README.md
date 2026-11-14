@@ -29,6 +29,7 @@ Edit `config/company.json`:
 
 - `company_name`
 - `approvers` — one string per role: `Name [SYNTHESIZED], Title`. Include manager, security, and any other role you use.
+- `approver_emails` — optional address per role, used when email notices are on. The demo uses `@example.com` placeholders.
 - `always_route` — roles that always approve. The demo is `["manager"]`. Add a role here when it should approve every vendor.
 - `stale_after_hours` — hours of silence before a nudge. Silence is never a yes.
 - `data_sensitivity` — which intake field and pack flag add `security_role`. The demo adds security when `touches_customer_data` is true or the pack flag `r3_shows_personal_data` is true.

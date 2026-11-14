@@ -9,6 +9,7 @@ It never carries bank details, EIN/tax IDs, SSNs, passwords, or contract content
 import json
 import os
 import smtplib
+import ssl
 import sys
 import urllib.request
 from email.message import EmailMessage
@@ -80,6 +81,23 @@ def notice_body(vendor, role, link, name, address):
     )
 
 
+def slack_escape(value):
+    # Slack mrkdwn treats & < > as control characters. Escape & first, then <, then >.
+    text = "" if value is None else str(value)
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def slack_body(vendor, role, link, name, address):
+    # The review link stays literal so it still opens. User-supplied values are escaped.
+    return notice_body(
+        slack_escape(vendor),
+        slack_escape(role) if role else role,
+        link,
+        slack_escape(name) if name else name,
+        slack_escape(address) if address else address,
+    )
+
+
 def _vendor(ticket):
     field = (ticket.get("intake") or {}).get("vendor_legal_name") or {}
     if isinstance(field, dict):
@@ -131,7 +149,7 @@ def send_email(settings, to_addr, subject, body):
     message.set_content(body)
     with smtplib.SMTP(settings["host"], settings["port"], timeout=TIMEOUT) as smtp:
         smtp.ehlo()
-        smtp.starttls()
+        smtp.starttls(context=ssl.create_default_context())
         smtp.ehlo()
         smtp.login(settings["user"], settings["password"])
         smtp.send_message(message)
@@ -168,7 +186,8 @@ def notify_requested(ticket, roles, config, log=None):
         address = _approver_email(config, role)
         body = notice_body(vendor, role, link, name, address)
         if settings["slack_url"]:
-            _attempt(lambda text=body: post_slack(settings["slack_url"], text), log,
+            message = slack_body(vendor, role, link, name, address)
+            _attempt(lambda text=message: post_slack(settings["slack_url"], text), log,
                      f"slack failed for {request_id} {role}")
         if not settings["email"]:
             continue
