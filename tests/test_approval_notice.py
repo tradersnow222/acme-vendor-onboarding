@@ -1,11 +1,14 @@
 import json
 import os
+import ssl
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
+from scripts.approval_notice import send_email, slack_escape
 from scripts.samples import load_sample
 from scripts.ticket import create_ticket, read_ticket
 from scripts.write_back import write_ticket
@@ -96,7 +99,9 @@ class ApprovalNoticeTest(unittest.TestCase):
             text = next(item["text"] for item in sent
                         if item["channel"] == channel and role in item["text"])
             self.assertEqual(text, notice_text(
-                vendor, role, "VR-0001", config["approvers"][role], config["approver_emails"][role]))
+                slack_escape(vendor), role, "VR-0001",
+                slack_escape(config["approvers"][role]),
+                slack_escape(config["approver_emails"][role])))
             self.assertIn(f"{BASE}/VR-0001", text)
             self.assertIn(f"Decision needed: {role} approval", text)
         for role in ("manager", "security"):
@@ -170,6 +175,92 @@ class ApprovalNoticeTest(unittest.TestCase):
         self.assertNotIn(acme["approvers"]["manager"], text)
         self.assertNotIn(acme["approver_emails"]["security"], self.capture.read_text())
         self.assertNotIn("Evan Cho", self.capture.read_text())
+
+    def test_slack_escapes_user_text_and_keeps_the_review_link(self):
+        self.prepare("zendesk", "VR-0001")
+        ticket = read_ticket("VR-0001", self.tickets)
+        ticket["intake"]["vendor_legal_name"]["value"] = "<!channel> & Co"
+        write_ticket(ticket, "VR-0001", self.tickets)
+        config = json.loads(ACME.read_text())
+        config["approvers"]["manager"] = "<@U123>"
+        config["approver_emails"]["manager"] = "a&b<c>@example.com"
+        config_path = Path(self.tmp.name) / "company.json"
+        config_path.write_text(json.dumps(config))
+        env = command_env({**ON, "APPROVAL_NOTICE_CAPTURE": str(self.capture)})
+        result = self.request("VR-0001", "2026-10-08T09:36:00-07:00", "2026-10-08", env, config_path)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        sent = [item for item in self.sent() if item["channel"] == "slack"]
+        self.assertEqual(len(sent), 2)
+        manager = next(item["text"] for item in sent if "Decision needed: manager" in item["text"])
+        self.assertIn("&lt;!channel&gt; &amp; Co", manager)
+        self.assertNotIn("<!channel>", manager)
+        self.assertNotIn("<@U123>", manager)
+        self.assertIn("&lt;@U123&gt;", manager)
+        self.assertIn("a&amp;b&lt;c&gt;@example.com", manager)
+        self.assertIn(f"Review: {BASE}/VR-0001\n", manager)
+        self.assertEqual(manager, notice_text(
+            "&lt;!channel&gt; &amp; Co", "manager", "VR-0001",
+            "&lt;@U123&gt;", "a&amp;b&lt;c&gt;@example.com"))
+        security = next(item["text"] for item in sent if "Decision needed: security" in item["text"])
+        self.assertIn("&lt;!channel&gt; &amp; Co", security)
+        self.assertIn(f"Review: {BASE}/VR-0001\n", security)
+        mail = next(item for item in self.sent()
+                    if item["channel"] == "email" and item["to"] == "a&b<c>@example.com")
+        self.assertIn("<!channel> & Co", mail["body"])
+        self.assertIn(f"Review: {BASE}/VR-0001\n", mail["body"])
+
+
+class StartTlsTest(unittest.TestCase):
+    def test_starttls_checks_hostname_and_certificate(self):
+        class FakeSMTP:
+            def __init__(self, host, port, timeout=None):
+                self.host = host
+                self.port = port
+                self.timeout = timeout
+                self.starttls_context = None
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def ehlo(self):
+                return None
+
+            def starttls(self, *, context=None):
+                self.starttls_context = context
+
+            def login(self, user, password):
+                return None
+
+            def send_message(self, message):
+                return None
+
+        holder = {}
+
+        def factory(*args, **kwargs):
+            holder["smtp"] = FakeSMTP(*args, **kwargs)
+            return holder["smtp"]
+
+        saved = {key: os.environ.pop(key, None) for key in
+                 ("APPROVAL_NOTICE_CAPTURE", "APPROVAL_NOTICE_FAIL")}
+        try:
+            with mock.patch("scripts.approval_notice.smtplib.SMTP", factory):
+                send_email(
+                    {"host": "smtp.example.test", "port": 587, "user": "notices@example.test",
+                     "password": "replace-me", "from": "notices@example.test"},
+                    "approver@example.test", "Vendor review", "body")
+        finally:
+            for key, value in saved.items():
+                if value is not None:
+                    os.environ[key] = value
+
+        context = holder["smtp"].starttls_context
+        self.assertIsInstance(context, ssl.SSLContext)
+        self.assertTrue(context.check_hostname)
+        self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
 
 
 if __name__ == "__main__":
