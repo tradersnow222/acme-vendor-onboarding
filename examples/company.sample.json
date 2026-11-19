@@ -7,11 +7,44 @@
   "always_route": ["manager"],
   "approvers": {
     "manager": "Priya Shah [SYNTHESIZED], Head of Operations",
-    "security": "Evan Cho [SYNTHESIZED], Security Lead"
+    "security": "Evan Cho [SYNTHESIZED], Security Lead",
+    "legal": "Maya Chen [SYNTHESIZED], General Counsel",
+    "privacy": "Samir Patel [SYNTHESIZED], Privacy Lead",
+    "finance": "Nora Ellis [SYNTHESIZED], Finance Controller",
+    "executive": "Helen Brooks [SYNTHESIZED], Chief Operating Officer"
   },
   "approver_emails": {
     "manager": "priya.shah@example.com",
-    "security": "evan.cho@example.com"
+    "security": "evan.cho@example.com",
+    "legal": "maya.chen@example.com",
+    "privacy": "samir.patel@example.com",
+    "finance": "nora.ellis@example.com",
+    "executive": "helen.brooks@example.com"
+  },
+  "tiering": {
+    "auto_decide": false,
+    "objection_hours": 24,
+    "fast_lane_hours": 48,
+    "spend_threshold": 10000,
+    "low_sample_percent": 10,
+    "auto_sample_percent": 10,
+    "max_verify_rounds": 3,
+    "routes": {
+      "low": ["manager"],
+      "medium": ["manager", "security"],
+      "high": ["manager", "security", "legal", "privacy"]
+    },
+    "triggers": {
+      "phi_pci_or_regulated": {"tier": "high", "enabled": true},
+      "privileged_access": {"tier": "high", "enabled": true},
+      "ai_training": {"tier": "high", "enabled": true},
+      "critical_impact": {"tier": "high", "enabled": true},
+      "customer_or_employee_pii": {"tier": "medium", "enabled": true},
+      "sso_oauth_or_write_api": {"tier": "medium", "enabled": true},
+      "spend_threshold": {"tier": "medium", "enabled": true},
+      "subprocessors": {"tier": "medium", "enabled": true},
+      "unapproved_geography": {"tier": "medium", "enabled": true}
+    }
   },
   "data_sensitivity": {
     "security_role": "security",
@@ -34,6 +67,7 @@
     "data_sensitivity.pack_check_flag": "Pack check key for the same question. The shipped packs use r3_shows_personal_data.",
     "data_sensitivity.legacy_pack_flags": "Older pack keys to treat as that flag. Empty for a new company. The Acme demo file lists one old key.",
     "data_sensitivity.question": "Asked when the intake field is missing. {company_name} is replaced with company_name.",
+    "tiering": "A tiering policy the company sets. auto_decide false is the kill switch: nothing is auto-approved or auto-rejected. fast_lane_hours is the Low clock (this sample uses 48, the same as stale_after_hours; the Acme demo uses 20). objection_hours is the verified-Low window, 24 as a stand-in for one business day. Spend threshold, day counts, and sample rates are unverified. Medium and high triggers can be turned off with enabled false. The script never asks the requester to name a tier.",
     "_comments": "Notes for the person filling this file. Scripts ignore this key. The file is ordinary JSON: copy it, no code changes."
   }
 }

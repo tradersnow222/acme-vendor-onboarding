@@ -52,7 +52,17 @@ def append_audit_row(request_id, row, runs_dir=RUNS_DIR):
 def build_status(ticket, audit_rows, now):
     approvers = ticket["approvers"]
     final_decision = ticket.get("final_decision")
-    decision = final_decision if final_decision == "withdrawn" else overall_decision(approvers)
+    verification = ticket.get("verification") or {}
+    if final_decision == "withdrawn":
+        decision = "withdrawn"
+    elif ticket.get("auto_rejected"):
+        decision = "rejected"
+    elif verification.get("status") == "pending_objection":
+        decision = "pending_objection"
+    elif verification.get("status") == "approved_auto" and final_decision == "approved":
+        decision = "approved"
+    else:
+        decision = overall_decision(approvers)
     opened = datetime.fromisoformat(ticket.get("created_at") or audit_rows[0]["timestamp_pt"])
     end = datetime.fromisoformat(ticket.get("closed_at") or now)
     days_open = round((end - opened).total_seconds() / 86400, 1)
@@ -79,6 +89,17 @@ def build_status(ticket, audit_rows, now):
         status["withdrawn_by"] = ticket.get("withdrawn_by")
         status["withdrawn_reason"] = ticket.get("withdrawn_reason")
         status["closed_at"] = ticket.get("closed_at")
+    if isinstance(ticket.get("tier"), dict):
+        status["tier"] = ticket["tier"].get("tier")
+    if ticket.get("auto_rejected"):
+        status["auto_rejected"] = True
+        status["auto_reject_reasons"] = ", ".join(ticket.get("auto_reject_reasons") or [])
+        status["closed_at"] = ticket.get("closed_at")
+    if verification.get("status") == "pending_objection":
+        status["objection_until"] = verification.get("objection_until")
+        status["owner_role"] = verification.get("owner_role")
+    if verification.get("status") == "approved_auto":
+        status["approved_auto"] = True
     return status
 
 
@@ -88,7 +109,17 @@ def format_status(request_id, status):
         lines.append(f"withdrawn by: {status['withdrawn_by']}")
         lines.append(f"reason: {status['withdrawn_reason']}")
         lines.append(f"closed at: {status['closed_at']}")
+    elif status.get("auto_rejected"):
+        lines.append(f"auto-rejected: {status.get('auto_reject_reasons')}")
+        lines.append(f"tier: {status.get('tier')}")
+        lines.append(f"closed at: {status.get('closed_at')}")
+    elif status["decision"] == "pending_objection":
+        lines.append(f"tier: {status.get('tier')}")
+        lines.append(f"objection until: {status.get('objection_until')}")
+        lines.append(f"accountable owner: {status.get('owner_role')}")
     else:
+        if status.get("tier"):
+            lines.append(f"tier: {status['tier']}")
         for role, a in status["approvers"].items():
             line = f"{role}: {a['name'] or '-'}, {a['decision']}, {a['at'] or '-'}"
             if a["conditions"]:

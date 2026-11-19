@@ -10,6 +10,7 @@ Vendors are real public companies. Every Acme person, message, time, and approve
 | `vr-0002-figma.json` | Figma, Inc. | Clean request, no customer data | All five fields in the first message, **0 follow-up rounds**. Route is **manager only**. Ends **approved**, about 0.2 days open. Pack: 12 rows, 0 not found. |
 | `vr-0003-asana.json` | Asana, Inc. | Exception: business owner left out | Intake asks **only for the business owner** (round 1 of max 2), and routing is blocked until it's filled. Route is **manager only**. Ends **approved**, about 0.9 days open. Pack: 12 rows, 0 not found. |
 | `vr-0001-zendesk-audit.csv` | Zendesk, Inc. | Expected audit log from the hand-run | 18 rows: 10 script, 4 model, 4 person. |
+| `tier-cases.json` | Synthesized scope answers | Tiering cases, not a full vendor request | A free tool that asks for Google Drive, and a cheap AI note-taker that records calls, are not Low. |
 
 ## What's in each file
 - `people`: requester, manager, and Security reviewer (only when needed).

@@ -43,7 +43,12 @@ def record_decision(approvers, role, name, decision, at, conditions):
 def content_hash(ticket):
     pack_path = ticket["research"].get("pack_path")
     pack = json.loads(Path(pack_path).read_text()) if pack_path else None
-    blob = json.dumps({"intake": ticket["intake"], "pack": pack}, sort_keys=True)
+    blob_obj = {"intake": ticket["intake"], "pack": pack}
+    if "scope" in ticket:
+        blob_obj["scope"] = ticket["scope"]
+    if "vendor_docs" in ticket:
+        blob_obj["vendor_docs"] = ticket["vendor_docs"]
+    blob = json.dumps(blob_obj, sort_keys=True)
     return hashlib.sha256(blob.encode()).hexdigest()
 
 

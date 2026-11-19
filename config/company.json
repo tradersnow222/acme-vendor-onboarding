@@ -7,11 +7,66 @@
   "always_route": ["manager"],
   "approvers": {
     "manager": "Daniel Okafor [SYNTHESIZED], Director of Customer Support",
-    "security": "Lena Hoffmann [SYNTHESIZED], Security & GRC Lead"
+    "security": "Lena Hoffmann [SYNTHESIZED], Security & GRC Lead",
+    "legal": "Maya Chen [SYNTHESIZED], General Counsel",
+    "privacy": "Samir Patel [SYNTHESIZED], Privacy Lead",
+    "finance": "Nora Ellis [SYNTHESIZED], Finance Controller",
+    "executive": "Helen Brooks [SYNTHESIZED], Chief Operating Officer"
   },
   "approver_emails": {
     "manager": "daniel.okafor@example.com",
-    "security": "lena.hoffmann@example.com"
+    "security": "lena.hoffmann@example.com",
+    "legal": "maya.chen@example.com",
+    "privacy": "samir.patel@example.com",
+    "finance": "nora.ellis@example.com",
+    "executive": "helen.brooks@example.com"
+  },
+  "tiering": {
+    "auto_decide": false,
+    "objection_hours": 24,
+    "fast_lane_hours": 20,
+    "spend_threshold": 10000,
+    "low_sample_percent": 10,
+    "auto_sample_percent": 10,
+    "max_verify_rounds": 3,
+    "escalate_to": "security",
+    "sanctions_reviewer": "security",
+    "verifiers": ["rules", "docs"],
+    "required_docs": ["oauth_scopes", "privacy_policy"],
+    "target_days": {"low": 2, "medium": 10, "high": 15},
+    "sanctioned_countries": ["CU", "Cuba", "IR", "Iran", "KP", "North Korea", "SY", "Syria"],
+    "confirmed_parties": ["Blocked Example Party"],
+    "potential_parties": ["Potential Example Match"],
+    "banned_categories": ["spyware", "stalkerware", "cryptocurrency mixer"],
+    "approved_countries": ["US", "USA", "United States", "CA", "Canada", "GB", "UK", "AU", "DE", "IE"],
+    "uncertain_answers": ["not sure", "unsure", "unknown", "n/a", "na", "tbd", "idk"],
+    "location_refusal_answers": ["refuse", "refused", "will not say", "declined"],
+    "call_recording_phrases": ["records calls", "call recording", "records the call"],
+    "sensitive_oauth_markers": ["drive", "gmail", "calendar", "mail.google"],
+    "privacy_data_phrases": ["records calls", "call recording", "records the call", "personal data", "customer data"],
+    "routes": {
+      "low": ["manager"],
+      "medium": ["manager", "security"],
+      "high": ["manager", "security", "legal", "privacy"]
+    },
+    "extra_approvers": {
+      "customer_or_employee_pii": ["privacy"],
+      "sso_oauth_or_write_api": ["legal"],
+      "spend_threshold": ["finance"],
+      "critical_impact": ["executive"]
+    },
+    "triggers": {
+      "phi_pci_or_regulated": {"tier": "high", "enabled": true},
+      "privileged_access": {"tier": "high", "enabled": true},
+      "ai_training": {"tier": "high", "enabled": true},
+      "critical_impact": {"tier": "high", "enabled": true},
+      "customer_or_employee_pii": {"tier": "medium", "enabled": true},
+      "sso_oauth_or_write_api": {"tier": "medium", "enabled": true},
+      "spend_threshold": {"tier": "medium", "enabled": true},
+      "subprocessors": {"tier": "medium", "enabled": true},
+      "unapproved_geography": {"tier": "medium", "enabled": true}
+    },
+    "score": {"data_public_or_none": 0, "data_internal_only": 2, "low_max": 2, "medium_max": 5}
   },
   "data_sensitivity": {
     "security_role": "security",

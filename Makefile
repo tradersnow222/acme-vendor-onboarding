@@ -20,6 +20,9 @@ help:
 	@echo "  python3 -m scripts.ticket --close <id> - Close out a decided request"
 	@echo "  python3 -m scripts.stale_check [--record] - List approvals due a nudge"
 	@echo "  python3 -m scripts.digest - Print the daily Ops digest"
+	@echo "  python3 -m scripts.tier --ticket <id> --answer <field>=<value> --oauth <scope> --privacy <text>"
+	@echo "      - Record the 11 factual answers, screen sanctions, and run the two verifiers"
+	@echo "  python3 -m scripts.tier --mix --tickets-dir tickets - Print the low/medium/high share and the weekly sample"
 
 setup:
 	@echo "Setup: Creating necessary directories..."

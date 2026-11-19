@@ -1,0 +1,49 @@
+{
+  "label": "SYNTHESIZED",
+  "note": "Factual scope answers for the tiering policy the company sets. Not a full vendor request.",
+  "clear_low": {
+    "q1_purpose": "Internal status board",
+    "q2_handles_data": "no",
+    "q3_data_types": "",
+    "q4_ai_training": "no",
+    "q5_sso_or_oauth": "no",
+    "q6_access": "none",
+    "q7_critical_impact": "no",
+    "q8_spend": "0",
+    "q9_countries": "US",
+    "q10_subprocessors": "no",
+    "q11_budget_owner": "Riley Quinn [SYNTHESIZED]",
+    "category": "design"
+  },
+  "cases": [
+    {
+      "name": "free_tool_google_drive",
+      "changes": {"q1_purpose": "Free file widget", "q8_spend": "free", "q5_sso_or_oauth": "Google Drive"},
+      "expected": {
+        "tier": "medium",
+        "decision": "human",
+        "triggers": ["sso_oauth_or_write_api"],
+        "blank": [],
+        "auto_reject": false,
+        "sanction_hit": false
+      }
+    },
+    {
+      "name": "cheap_ai_call_recorder",
+      "changes": {
+        "q1_purpose": "Cheap AI note-taker that records calls",
+        "q2_handles_data": "no",
+        "q4_ai_training": "no",
+        "q8_spend": "15"
+      },
+      "expected": {
+        "tier": "medium",
+        "decision": "human",
+        "triggers": ["customer_or_employee_pii"],
+        "blank": [],
+        "auto_reject": false,
+        "sanction_hit": false
+      }
+    }
+  ]
+}

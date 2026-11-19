@@ -59,6 +59,13 @@ def main(argv):
         return usage_error(f"no ticket {args.ticket} in {args.tickets_dir}")
 
     ticket = read_ticket(args.ticket, args.tickets_dir)
+    tier_name = (ticket.get("tier") or {}).get("tier") if isinstance(ticket.get("tier"), dict) else None
+    requester = ticket.get("requester") or ""
+    if tier_name == "low" and requester:
+        from scripts.tier import same_person
+        if same_person(args.name, requester):
+            print(f"{args.ticket}: not recorded: low-tier approver cannot be the requester")
+            return 1
     try:
         updated = record_decision(ticket["approvers"], args.role, args.name, args.decision, args.at, args.condition)
     except ValueError as error:

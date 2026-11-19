@@ -47,6 +47,35 @@ def request_approvals(ticket, at, today, names, config=None):
     result = route_request(ticket["intake"], None, intake_passed, pack_passed, config)
     if result["blocked"]:
         return result, []
+    ver = ticket.get("verification") or {}
+    if ver.get("status") in {"pending_objection", "approved_auto", "auto_rejected"} or ticket.get("auto_rejected"):
+        result["verification_hold"] = ver.get("status") or "auto_rejected"
+        result["route"] = list(ticket.get("route") or [])
+        return result, []
+    if ticket.get("scope") is not None:
+        from scripts.tier import assign_tier, higher_tier, merged_tiering
+        rule = (config or {}).get("data_sensitivity") or {}
+        field = rule.get("intake_field", "touches_customer_data")
+        try:
+            intake_yes = ticket["intake"][field]["value"] is True
+        except (KeyError, TypeError):
+            intake_yes = False
+        vendor = (ticket["intake"].get("vendor_legal_name") or {}).get("value") or ""
+        tier = assign_tier(ticket["scope"], config, vendor_name=vendor, intake_customer_data=intake_yes)
+        result["tier"] = tier
+        if ver.get("status") in {"human", "stopped"} and ticket.get("route"):
+            result["route"] = list(ticket["route"])
+        else:
+            name = tier["tier"]
+            if ver.get("tier"):
+                name = higher_tier(name, ver["tier"])
+            if name == tier["tier"]:
+                result["route"] = list(tier["route"])
+            else:
+                result["route"] = list(merged_tiering(config)["routes"].get(name) or tier["route"])
+        for role in list(ticket["approvers"]):
+            if role not in result["route"] and ticket["approvers"][role]["decision"] == "waiting":
+                ticket["approvers"].pop(role)
     ticket["route"] = result["route"]
     requested = []
     for role in result["route"]:
@@ -98,6 +127,9 @@ def main(argv):
     if result["blocked"]:
         print(f"{args.ticket}: blocked: {'; '.join(result['blocked_reasons'])}")
         return 1
+    if result.get("verification_hold"):
+        print(f"{args.ticket}: {result['verification_hold']}; not requesting approvals")
+        return 0
     if not requested:
         times = ", ".join(f"{role} {ticket['approvers'][role].get('requested_at') or '-'}" for role in result["route"])
         print(f"{args.ticket}: approvals already requested: {times}")
@@ -124,6 +156,18 @@ def main(argv):
                 "timestamp_pt": args.at,
                 "outcome": f"{role} {old['name']} {old['decision']} at {old['at']}{conditions}; "
                            "reason: intake or pack changed after approval",
+                "est_cost": "~0",
+                "data_label": "SYNTHESIZED",
+            }, args.runs_dir)
+        if result.get("tier"):
+            from scripts.tier import outcome_text
+            append_audit_row(args.ticket, {
+                "step": "Tier",
+                "actor_type": "script",
+                "actor": "scripts.request_approvals",
+                "timestamp_pt": args.at,
+                "what_they_saw": "tiering policy and scope answers",
+                "outcome": outcome_text(result["tier"]),
                 "est_cost": "~0",
                 "data_label": "SYNTHESIZED",
             }, args.runs_dir)
