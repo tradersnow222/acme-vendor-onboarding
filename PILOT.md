@@ -41,6 +41,7 @@ Fill these fields:
 | `approvers` | One string per role: `Name [SYNTHESIZED], Title`. |
 | `approver_emails` | Optional address per role, used only when email notices are on. The sample uses `@example.com` placeholders. Replace them before you turn email on. |
 | `data_sensitivity` | When to add the security role. The notes in the sample say what each key does. |
+| `tiering` | A tiering policy the company sets. Thresholds, which triggers are on, routes, and the sanctions lists live here. `auto_decide` false is the kill switch. The sample `fast_lane_hours` is 48, matching `stale_after_hours`. |
 
 The sample manager string, which the command below records, is `Priya Shah [SYNTHESIZED], Head of Operations`. If you edit `approvers.manager`, use your string in that command instead.
 
@@ -133,3 +134,4 @@ The sample decision time is 2026-10-09. A ticket created on a later day and clos
 - Slack and email notices stay off unless the `APPROVAL_` variables above are set. This walkthrough leaves them unset, so nothing is sent. A failed send does not stop the review.
 - Do not pass `--live`. Dry run is the whole research step.
 - The nudge timer is `stale_after_hours` from your config (48 in the sample, 20 in the Acme demo). Silence only nudges. It never counts as approval.
+- Tiering is a tiering policy the company sets. The checks that re-read the evidence are checks the company configures. A Low timeout escalates and never auto-approves. With `auto_decide` left false, nothing is auto-approved or auto-rejected.

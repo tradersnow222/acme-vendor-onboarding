@@ -25,6 +25,10 @@ def has_offset(value):
 
 
 def due_approvers(ticket, now, config):
+    tier = ticket.get("tier") if isinstance(ticket.get("tier"), dict) else {}
+    if tier.get("tier") == "low":
+        from scripts.tier import fast_lane_hours
+        config = {**config, "stale_after_hours": fast_lane_hours(config)}
     due = []
     for role, approver in ticket["approvers"].items():
         requested_at = approver.get("requested_at")
@@ -62,7 +66,11 @@ def main(argv):
             continue
         for role, approver in due_approvers(ticket, args.now, config):
             hours = (now - datetime.fromisoformat(approver["requested_at"])).total_seconds() / 3600
-            print(f"{request_id}: {role} has waited {round(hours, 1)} hours since {approver['requested_at']}; nudge due")
+            line = f"{request_id}: {role} has waited {round(hours, 1)} hours since {approver['requested_at']}; nudge due"
+            tier = ticket.get("tier") if isinstance(ticket.get("tier"), dict) else {}
+            if tier.get("tier") == "low":
+                line += "; escalate to security"
+            print(line)
             if not args.record:
                 continue
             approver["nudged_at"] = args.now
@@ -78,6 +86,26 @@ def main(argv):
                     "est_cost": "~0",
                     "data_label": "SYNTHESIZED",
                 }, args.runs_dir)
+                if tier.get("tier") == "low" and not tier.get("escalated"):
+                    escalate_to = "security"
+                    if escalate_to not in ticket.get("route", []):
+                        ticket.setdefault("route", []).append(escalate_to)
+                    ticket["approvers"].setdefault(escalate_to, {
+                        "name": (config.get("approvers") or {}).get(escalate_to),
+                        "decision": "waiting", "at": None, "conditions": [], "requested_at": args.now,
+                    })
+                    tier["escalated"] = True
+                    ticket["tier"] = tier
+                    write_ticket(ticket, request_id, args.tickets_dir)
+                    append_audit_row(request_id, {
+                        "step": "Low-tier escalation",
+                        "actor_type": "script",
+                        "actor": "scripts.stale_check",
+                        "timestamp_pt": args.now,
+                        "outcome": f"escalated to {escalate_to}; silence is not a yes",
+                        "est_cost": "~0",
+                        "data_label": "SYNTHESIZED",
+                    }, args.runs_dir)
             except SensitiveDataError as error:
                 print(error)
                 return 1

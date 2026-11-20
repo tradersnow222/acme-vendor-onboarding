@@ -70,4 +70,28 @@ The sample decision times are 2026-10-09. A ticket created on a later day and cl
 
 Tickets land in `tickets/`, packs in `packs/`, and the audit log at `runs/<id>/audit.csv`. See [DATA-HANDLING.md](DATA-HANDLING.md). The longer demo writeup is in [INTERVIEW.md](INTERVIEW.md).
 
+## Tiering
+
+`config/company.json` holds a tiering policy the company sets, under `tiering`. The script applies the triggers, score bands, routes, and lists in that file.
+
+Inherent risk picks the route. Residual risk is the named person's accept, reject, or conditions. A SOC 2 report does not drop the tier.
+
+The five intake fields still gate the request. Tiering adds 11 factual questions (purpose, data, AI training, SSO or OAuth, access, impact, spend, country, subprocessors, and a named budget owner). The script never asks the requester to name a tier. The bot runs the sanctions screen from the lists in the config. It does not call the network.
+
+Any one hard trigger blocks Low. Blank, missing, or "not sure" on the data questions moves the ticket up. Medium triggers are configurable (`enabled` true or false), not only the spend threshold. High adds Legal and Privacy. Spend at or over `spend_threshold` (demo default 10000) is at least Medium.
+
+Low is a fast lane: one named approver who is not the requester, and a clock. `fast_lane_hours` defaults to `stale_after_hours` (20 in the Acme demo). The research note of 2 business days is unverified; set `fast_lane_hours` to 48 to use two 24-hour days. When the clock runs out, the ticket escalates to Security. Silence is not a yes, and a timeout never auto-approves.
+
+Before any auto-approve or auto-reject, two checks the company configures re-read the evidence file (`runs/<id>/evidence.json`: each intake answer, the sanctions result, and which vendor docs were checked). They do not see the triage notes. They look for contradictions, such as OAuth scopes or a privacy policy that describe data the intake said was absent. Each writes PASS or FAIL, pinned to a hash of that snapshot. If the answers or the docs change, those verdicts are void and the check runs again.
+
+`auto_decide` defaults to false. That flag is the kill switch: every auto-decision goes back to a named human. With it on, an auto-decision still needs the rule checks and both verifiers to agree with triage. Disagreement or missing docs escalates one tier. After 3 failed rounds the ticket stops on a human route.
+
+Auto-approve is only for Low. The named owner gets a notice and an objection window (`objection_hours`, default 24, a stand-in for 1 business day) before `python3 -m scripts.tier --apply-pending` lets it take effect. Auto-reject is only a confirmed sanctions match that both verifiers confirm on their own. A banned category, a refused processing location, or a potential sanctions match goes to a named human.
+
+Re-check with `python3 -m scripts.tier --ticket <id> --renew` or new `--answer` values when data, users, SSO, AI use, subprocessors, geography, or spend change. `python3 -m scripts.tier --mix` prints the Low, Medium, and High share. A weekly sample of auto-decisions, and a sample of Low files, are listed for a person to review (`auto_sample_percent`, `low_sample_percent`).
+
+Every verdict, evidence hash, and verifier reason is a row in the audit CSV. A wrong call has one undo: `python3 -m scripts.tier --ticket <id> --revert`. Then add the missed fact to `tiering` and a case in `data/samples/tier-cases.json` with a test, so the same miss fails the suite next time.
+
+Later, and not in this version: a hash-chained audit file, a business-day calendar, a live sanctions pull, reading scope out of the research pack, an offboarding checklist, a fourth tier, a formal waiver, near-threshold sampling, and SIG/CAIQ tracking.
+
 Built by Matt Snow on Grok Bot.
