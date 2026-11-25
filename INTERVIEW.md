@@ -412,14 +412,11 @@ See `.cursor/rules/git-workflow.mdc` and `AGENTS.md` for full details.
 - Next: Connect to Jira or ServiceNow as system of record, scripts read/write tickets there
 
 **Key rotation**
-- Current: `CURSOR_API_KEY` lives in environment variable as Cursor cloud agent secret
-- No rotation policy, no expiration tracking
-- Next: Rotate key every 90 days, store rotation date in config, alert when expiring
+- Built: `config/company.json` stores an optional `api_key_rotated_on` date (synthesized demo value). `scripts/digest.py` warns when that date is 80 or more days old, against a 90-day rotation policy.
 
 **Pilot cost estimates**
 - Current: Hand-calculated from public pricing (labeled `[ASSUMPTION]`)
-- No budget approval gate before routing to manager
-- Next: Add budget threshold (e.g. pilots > $5k need Finance approval before manager)
+- Already in place: `config/company.json` maps `tiering.extra_approvers.spend_threshold` to finance, and `scripts/tier.py` adds finance when that trigger fires on a high-tier request. No separate budget gate added.
 
 **Duplicate vendor detection**
 - Current: Each request treated independently, no check for existing pilot or active contract
@@ -437,8 +434,8 @@ See `.cursor/rules/git-workflow.mdc` and `AGENTS.md` for full details.
 2. **Run live pilot:** Pick 3-5 real vendor requests, run with `--live` flag, track cycle time and exceptions
 3. **Connect Jira/ServiceNow:** Replace JSON tickets with external system integration
 4. **Add condition tracking:** Mark conditions complete before start date
-5. **Rotate API key:** Set 90-day rotation policy, add expiration alert
-6. **Budget approval gate:** Route pilots > $5k to Finance before manager
+5. **Rotate API key:** Built. Digest warns when `api_key_rotated_on` is 80 or more days old (90-day policy).
+6. **Budget approval gate:** Already in place. `spend_threshold` routes to finance through `scripts/tier.py` and `config/company.json`. No separate gate added.
 7. **Duplicate detection:** Check for existing vendor pilots before creating new request
 
 ---
