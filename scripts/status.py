@@ -2,7 +2,7 @@ import argparse
 import csv
 import sys
 from collections import Counter
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from scripts.approvals import overall_decision
@@ -14,6 +14,8 @@ COLUMNS = ["step_id", "step", "actor_type", "actor", "timestamp_pt", "what_they_
            "outcome", "est_cost", "could_be_done_by", "data_label"]
 ACTOR_TYPES = ("script", "model", "person")
 DATA_LABELS = ("PUBLIC", "SYNTHESIZED", "ASSUMPTION")
+CONDITION_STATUSES = ("pending", "complete", "waived")
+CONDITION_LEAD_DAYS = 3
 
 
 def audit_path(request_id, runs_dir=RUNS_DIR):
@@ -49,6 +51,34 @@ def append_audit_row(request_id, row, runs_dir=RUNS_DIR):
         writer.writerow({**row, "step_id": step_id})
 
 
+def condition_states(approver):
+    stored = approver.get("condition_status") or {}
+    return [(text, stored.get(text, "pending")) for text in approver.get("conditions") or []]
+
+
+def pending_conditions(ticket):
+    pending = []
+    for approver in ticket.get("approvers", {}).values():
+        pending.extend(text for text, status in condition_states(approver) if status == "pending")
+    return pending
+
+
+def condition_warning(ticket, now):
+    pending = pending_conditions(ticket)
+    raw = ((ticket.get("intake") or {}).get("target_start_date") or {}).get("value")
+    if not pending or not raw:
+        return None
+    try:
+        start = date.fromisoformat(str(raw)[:10])
+        today = datetime.fromisoformat(now).date()
+    except ValueError:
+        return None
+    if (start - today).days > CONDITION_LEAD_DAYS:
+        return None
+    return (f"start date {start.isoformat()} is within {CONDITION_LEAD_DAYS} days or past; "
+            f"pending conditions: {'; '.join(pending)}")
+
+
 def build_status(ticket, audit_rows, now):
     approvers = ticket["approvers"]
     final_decision = ticket.get("final_decision")
@@ -76,7 +106,10 @@ def build_status(ticket, audit_rows, now):
     status = {
         "decision": decision,
         "approvers": {
-            role: {key: a[key] for key in ("name", "decision", "at", "conditions")}
+            role: {
+                **{key: a[key] for key in ("name", "decision", "at", "conditions")},
+                **({"condition_status": a["condition_status"]} if a.get("condition_status") else {}),
+            }
             for role, a in approvers.items()
         },
         "days_open": days_open,
@@ -100,6 +133,9 @@ def build_status(ticket, audit_rows, now):
         status["owner_role"] = verification.get("owner_role")
     if verification.get("status") == "approved_auto":
         status["approved_auto"] = True
+    warning = condition_warning(ticket, now)
+    if warning:
+        status["condition_warning"] = warning
     return status
 
 
@@ -123,7 +159,8 @@ def format_status(request_id, status):
         for role, a in status["approvers"].items():
             line = f"{role}: {a['name'] or '-'}, {a['decision']}, {a['at'] or '-'}"
             if a["conditions"]:
-                line += f"; conditions: {'; '.join(a['conditions'])}"
+                labeled = [f"{text} ({state})" for text, state in condition_states(a)]
+                line += f"; conditions: {'; '.join(labeled)}"
             lines.append(line)
     ex = status["exceptions"]
     steps = status["steps_by_actor_type"]
@@ -134,6 +171,8 @@ def format_status(request_id, status):
         f"hedged answers: {status['hedged_answers']}, nudges: {status['nudges']}",
         f"steps: {', '.join(f'{steps.get(t, 0)} {t}' for t in ACTOR_TYPES)}",
     ]
+    if status.get("condition_warning"):
+        lines.append(f"warning: {status['condition_warning']}")
     return "\n".join(lines)
 
 
