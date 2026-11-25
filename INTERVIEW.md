@@ -422,9 +422,7 @@ See `.cursor/rules/git-workflow.mdc` and `AGENTS.md` for full details.
 - Next: Add budget threshold (e.g. pilots > $5k need Finance approval before manager)
 
 **Duplicate vendor detection**
-- Current: Each request treated independently, no check for existing pilot or active contract
-- Risk: Two teams pilot same vendor concurrently, duplicate spend
-- Next: Check `tickets/` for open or approved requests for same vendor, flag to Ops
+- Built: Creating a ticket checks `tickets/` for an open or approved request with the same vendor name, case-insensitive. A match prints a warning, sets `duplicate_of`, and adds an audit row. Creation is not blocked.
 
 **Email notifications**
 - Current: All communication in bot, no email integration
@@ -439,7 +437,7 @@ See `.cursor/rules/git-workflow.mdc` and `AGENTS.md` for full details.
 4. **Add condition tracking:** Mark conditions complete before start date
 5. **Rotate API key:** Set 90-day rotation policy, add expiration alert
 6. **Budget approval gate:** Route pilots > $5k to Finance before manager
-7. **Duplicate detection:** Check for existing vendor pilots before creating new request
+7. **Duplicate detection:** Built. Ticket creation warns when an open or approved ticket already exists for the same vendor.
 
 ---
 

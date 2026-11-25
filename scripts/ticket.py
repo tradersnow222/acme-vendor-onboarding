@@ -26,6 +26,34 @@ def read_ticket(request_id, tickets_dir=TICKETS_DIR):
     return json.loads(ticket_path(request_id, tickets_dir).read_text())
 
 
+APPROVED_DECISIONS = {"approved", "approved_with_conditions"}
+
+
+def vendor_name(ticket):
+    field = (ticket.get("intake") or {}).get("vendor_legal_name") or {}
+    return (field.get("value") or "").strip() if isinstance(field, dict) else ""
+
+
+def is_open_or_approved(ticket):
+    if not ticket.get("closed_at"):
+        return True
+    return ticket.get("final_decision") in APPROVED_DECISIONS
+
+
+def duplicate_ticket_ids(fields, tickets_dir, request_id):
+    name = vendor_name({"intake": fields}).casefold()
+    if not name or not Path(tickets_dir).is_dir():
+        return []
+    found = []
+    for path in sorted(Path(tickets_dir).glob("*.json")):
+        if path.stem == request_id:
+            continue
+        other = json.loads(path.read_text())
+        if is_open_or_approved(other) and vendor_name(other).casefold() == name:
+            found.append(other.get("request_id") or path.stem)
+    return found
+
+
 def create_ticket(request_id, fields, tickets_dir=TICKETS_DIR):
     path = ticket_path(request_id, tickets_dir)
     if path.exists():
@@ -45,6 +73,9 @@ def create_ticket(request_id, fields, tickets_dir=TICKETS_DIR):
             "nudges": 0,
         },
     }
+    dupes = duplicate_ticket_ids(fields, tickets_dir, request_id)
+    if dupes:
+        ticket["duplicate_of"] = dupes
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(checked_text(json.dumps(ticket, indent=2) + "\n"))
     return ticket
@@ -127,11 +158,25 @@ def main():
 
     if args.sample:
         sample = load_sample(args.sample)
+        request_id = sample["request_id"]
+        existed = ticket_path(request_id, args.dir).is_file()
         try:
-            ticket = create_ticket(sample["request_id"], sample["expected"]["intake"]["fields"], args.dir)
+            ticket = create_ticket(request_id, sample["expected"]["intake"]["fields"], args.dir)
         except SensitiveDataError as error:
             print(error)
             return 1
+        dupes = ticket.get("duplicate_of") or []
+        if dupes and not existed:
+            from scripts.status import RUNS_DIR, append_audit_row
+
+            vendor = vendor_name(ticket)
+            noun = "ticket" if len(dupes) == 1 else "tickets"
+            print(f"warning: {vendor} already has open or approved {noun} {', '.join(dupes)}", file=sys.stderr)
+            append_audit_row(request_id, {
+                "step": "Duplicate vendor", "actor_type": "script", "actor": "scripts.ticket",
+                "timestamp_pt": ticket["created_at"], "outcome": "duplicate of " + ", ".join(dupes),
+                "est_cost": "~0", "data_label": "SYNTHESIZED",
+            }, args.runs_dir or RUNS_DIR)
         print(json.dumps(ticket, indent=2))
         return 0
 
