@@ -5,7 +5,7 @@ from pathlib import Path
 
 from scripts.approvals import is_stale, load_config
 from scripts.sensitive import SensitiveDataError
-from scripts.status import RUNS_DIR, append_audit_row
+from scripts.status import RUNS_DIR, append_audit_row, condition_warning
 from scripts.ticket import TICKETS_DIR, read_ticket
 from scripts.write_back import write_ticket
 
@@ -62,6 +62,9 @@ def main(argv):
     for path in sorted(Path(args.tickets_dir).glob("*.json")):
         request_id = path.stem
         ticket = read_ticket(request_id, args.tickets_dir)
+        warning = condition_warning(ticket, args.now)
+        if warning:
+            print(f"{request_id}: {warning}")
         if ticket.get("closed_at"):
             continue
         for role, approver in due_approvers(ticket, args.now, config):

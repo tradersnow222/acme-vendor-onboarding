@@ -402,9 +402,7 @@ See `.cursor/rules/git-workflow.mdc` and `AGENTS.md` for full details.
 ### Tradeoffs
 
 **Condition tracking before start date**
-- Current: Conditions recorded in ticket and audit log, presented to requester as checklist
-- Bot does not track completion of conditions or block start date if incomplete
-- Next: Add condition status field (`pending`, `complete`, `waived`) and workflow to mark each complete before start date
+- Built: Each approval condition has a status of `pending`, `complete`, or `waived`. `scripts/mark_condition.py` sets it. `scripts/status.py` and `scripts/stale_check.py` flag a ticket whose start date is within 3 days, or already past, while a condition is still pending.
 
 **JSON tickets vs Jira/ServiceNow**
 - Current: Local JSON files in `tickets/` (git-ignored), no external system integration
@@ -434,7 +432,7 @@ See `.cursor/rules/git-workflow.mdc` and `AGENTS.md` for full details.
 1. **Validate with Maya:** Confirm five fields sufficient, research checklist complete, approval routing correct
 2. **Run live pilot:** Pick 3-5 real vendor requests, run with `--live` flag, track cycle time and exceptions
 3. **Connect Jira/ServiceNow:** Replace JSON tickets with external system integration
-4. **Add condition tracking:** Mark conditions complete before start date
+4. **Add condition tracking:** Built. Conditions can be marked pending, complete, or waived, and status and stale check flag a pending condition within 3 days of the start date.
 5. **Rotate API key:** Set 90-day rotation policy, add expiration alert
 6. **Budget approval gate:** Route pilots > $5k to Finance before manager
 7. **Duplicate detection:** Built. Ticket creation warns when an open or approved ticket already exists for the same vendor.
