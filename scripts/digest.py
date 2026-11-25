@@ -1,6 +1,6 @@
 import argparse
 import sys
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from scripts.approvals import load_config
@@ -8,6 +8,8 @@ from scripts.status import ACTOR_TYPES, RUNS_DIR, build_status, read_audit
 from scripts.ticket import TICKETS_DIR, read_ticket
 
 EXAMPLE = "example: python3 -m scripts.digest --now 2026-10-09T12:00:00-07:00"
+KEY_ROTATION_DAYS = 90
+KEY_WARN_DAYS = 80
 EPILOG = """examples:
   python3 -m scripts.digest
       digest of every open request as of now
@@ -18,6 +20,22 @@ EPILOG = """examples:
 def open_tickets(tickets_dir):
     tickets = [read_ticket(path.stem, tickets_dir) for path in sorted(Path(tickets_dir).glob("*.json"))]
     return [t for t in tickets if not t.get("closed_at")]
+
+
+def key_rotation_warning(config, now):
+    raw = config.get("api_key_rotated_on")
+    if not raw:
+        return None
+    try:
+        rotated = date.fromisoformat(str(raw)[:10])
+        today = datetime.fromisoformat(now).date()
+    except ValueError:
+        return None
+    age = (today - rotated).days
+    if age < KEY_WARN_DAYS:
+        return None
+    return (f"warning: API key rotated on {rotated.isoformat()} is {age} days old "
+            f"({KEY_ROTATION_DAYS}-day policy)")
 
 
 def format_digest(tickets, runs_dir, now):
@@ -41,7 +59,7 @@ def format_digest(tickets, runs_dir, now):
 
 def main(argv):
     parser = argparse.ArgumentParser(
-        description="Print the daily Ops digest of every open vendor request. Prints nothing when none are open.",
+        description="Print the daily Ops digest of every open vendor request, and warn when the API key is due for rotation.",
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -53,9 +71,13 @@ def main(argv):
     if datetime.fromisoformat(args.now).tzinfo is None:
         print(f"--now has no UTC offset: {args.now}\n{EXAMPLE}", file=sys.stderr)
         return 2
+    config = load_config()
     tickets = open_tickets(args.tickets_dir)
     if tickets:
         print(format_digest(tickets, args.runs_dir, args.now))
+    warning = key_rotation_warning(config, args.now)
+    if warning:
+        print(warning)
     return 0
 
 
